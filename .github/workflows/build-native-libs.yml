@@ -27,7 +27,7 @@ jobs:
             os: linux
             arch: x64
             cmake_arch: x86_64
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04-arm
             os: linux
             arch: arm64
             cmake_arch: aarch64
@@ -180,6 +180,7 @@ jobs:
             "-DBUILD_SHARED_LIBS=OFF" `
             "-DCURL_USE_SCHANNEL=ON" `
             "-DCURL_USE_OPENSSL=OFF" `
+            "-DCURL_USE_LIBPSL=OFF" `
             "-DCURL_ZLIB=ON" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
@@ -242,7 +243,7 @@ jobs:
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
-          cmake --build . --config Release --target install /verbosity:minimal
+          cmake --build . --config Release --target install -- /verbosity:minimal
 
       ###########################################################################
       # NETCDF-C SERIAL BUILD
@@ -259,14 +260,17 @@ jobs:
             -DBUILD_SHARED_LIBS=ON \
             -DNETCDF_ENABLE_HDF5=ON \
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
-            -NETCDF_ENABLE_DAP=ON \
+            -DNETCDF_ENABLE_DAP=ON \
             -DENABLE_NCZARR=ON \
             -DENABLE_BYTERANGE=ON \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || echo '')" \
+            -DCURL_INCLUDE_DIR=$CURL_INCLUDE \
+            -DCURL_LIBRARY=$CURL_LIBRARY \
+            -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
+            -DZLIB_LIBRARY=$ZLIB_LIBRARY \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DCMAKE_BUILD_TYPE=Release          
-          cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc) -- -v=0
-          cmake --install . --prefix install
+          cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc) --quiet
+          cmake --install . --prefix install --quiet
 
       - name: Build netCDF-C (Windows)
         if: matrix.os == 'windows'
@@ -279,7 +283,7 @@ jobs:
           cmake .. -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
             "-DBUILD_SHARED_LIBS=ON" `
             "-DNETCDF_ENABLE_HDF5=ON" `
-            "-DENABLE_TESTS=OFF" `.
+            "-DENABLE_TESTS=OFF" `
             "-DHDF5_ROOT=${{ github.workspace }}/build/hdf5/build/install" `
             "-DENABLE_DAP=ON" `
             "-DENABLE_NCZARR=ON" `
@@ -289,9 +293,8 @@ jobs:
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
-            "-DHDF5_ROOT=$env:HDF5_INSTALL_PREFIX" `
             "-DCMAKE_BUILD_TYPE=Release"
-          cmake --build . --config Release --target install /verbosity:minimal
+          cmake --build . --config Release --target install -- /verbosity:minimal
 
 
       ###########################################################################
