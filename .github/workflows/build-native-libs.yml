@@ -112,17 +112,18 @@ jobs:
       
           New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
           Set-Location zlib-build
-      
+          $installPrefix = "$PWD\install"
+
           cmake ../zlib-src -A x64 `
             "-DBUILD_SHARED_LIBS=OFF" `
-            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release" `
             "--log-level=WARNING"
 
-          cmake --build . --config Release --target install -- /verbosity:minimal
+          cmake --build . --config Release -- /verbosity:quiet /nologo
+          cmake --install . --config Release --prefix $installPrefix
 
-          echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$PWD/install/lib/zlibstatic.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_INCLUDE=$installPrefix\include" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$installPrefix\lib\zlibstatic.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
