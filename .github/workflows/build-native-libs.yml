@@ -24,31 +24,31 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ubuntu-latest
-            os: linux
-            arch: x64
-            cmake_arch: x86_64
-          - runner: ubuntu-latest
-            os: linux
-            arch: arm64
-            cmake_arch: aarch64
-          - runner: macos-latest
-            os: macos
-            arch: x64
-            cmake_arch: x86_64
-          - runner: macos-latest
-            os: macos
-            arch: arm64
-            cmake_arch: arm64
+          # - runner: ubuntu-latest
+          #   os: linux
+          #   arch: x64
+          #   cmake_arch: x86_64
+          # - runner: ubuntu-latest
+          #   os: linux
+          #   arch: arm64
+          #   cmake_arch: aarch64
+          # - runner: macos-latest
+          #   os: macos
+          #   arch: x64
+          #   cmake_arch: x86_64
+          # - runner: macos-latest
+          #   os: macos
+          #   arch: arm64
+          #   cmake_arch: arm64
           - runner: windows-latest
             os: windows
             arch: x64
             cmake_arch: x64
-# Windows ARM64 disabled — HDF5 cannot be built
-#          - runner: windows-latest
-#            os: windows
-#            arch: arm64
-#            cmake_arch: ARM64
+         # Windows ARM64 disabled — HDF5 cannot be built
+         # - runner: windows-latest
+         #   os: windows
+         #   arch: arm64
+         #   cmake_arch: ARM64
 
     env:
       HDF5_VERSION: ${{ github.event.inputs.hdf5_version || '1.14.2' }}
