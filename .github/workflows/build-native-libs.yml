@@ -131,8 +131,8 @@ jobs:
             "-DHDF5_BUILD_TESTING=OFF" `
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
-            "-DZLIB_INCLUDE_DIR=C:/Program Files/zlib/include" `
-            "-DZLIB_LIBRARY=C:/Program Files/zlib/lib/zlib.lib" `
+            "-DZLIB_INCLUDE_DIR=C:/Program` Files/zlib/include" `
+            "-DZLIB_LIBRARY=C:/Program` Files/zlib/lib/zlib.lib" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install
