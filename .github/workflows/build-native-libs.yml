@@ -83,18 +83,6 @@ jobs:
           Write-Host "PnetCDF version: $env:PNETCDF_VERSION"
           Write-Host "Matrix: ${{ matrix.os }} / ${{ matrix.arch }}"
 
-      - name: Create deps directory
-        shell: bash
-        run: |
-          mkdir -p unidata-netcdf-c/deps
-
-      - name: Create deps directory (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "unidata-netcdf-c\deps" | Out-Null
-
-
       - name: Fetch Unidata/netcdf-c at tag (Unix)
         if: matrix.os != 'windows'
         shell: bash
@@ -106,6 +94,11 @@ jobs:
           cd unidata-netcdf-c
           git submodule update --init --recursive || true
           echo "Checked out Unidata/netcdf-c at $UNIDATA_TAG"
+
+      - name: Create deps directory
+        shell: bash
+        run: |
+          mkdir -p unidata-netcdf-c/deps
 
       - name: Fetch Unidata/netcdf-c at tag (Windows)
         if: matrix.os == 'windows'
@@ -123,6 +116,12 @@ jobs:
             Write-Warning "git submodule update failed or no submodules present: $($_.Exception.Message)"
           }
           Write-Host "Checked out Unidata/netcdf-c at $env:UNIDATA_TAG"
+
+      - name: Create deps directory (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "unidata-netcdf-c\deps" | Out-Null
 
       - name: Install common tools (Linux/macOS)
         if: matrix.os != 'windows'
