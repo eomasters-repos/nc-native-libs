@@ -81,11 +81,35 @@ jobs:
         run: |
           brew install curl
 
-      - name: Install curl dev (Windows)
+      - name: Install curl, zlib (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           choco install -y curl
+          choco install -y zlib
+
+          $ZLIB_H = Get-ChildItem "C:\ProgramData\chocolatey\lib\zlib" -Recurse -Filter "zlib.h" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if (-not $ZLIB_H) {
+              Write-Error "Could not find zlib.h inside Chocolatey zlib installation."
+              exit 1
+          }
+      
+          $ZLIB_INCLUDE = $ZLIB_H.Directory.FullName
+          $ZLIB_LIBRARY = Join-Path ($ZLIB_INCLUDE.Replace("include", "lib")) "zlib.lib"
+      
+          if (-not (Test-Path $ZLIB_LIBRARY)) {
+              Write-Error "ZLIB library not found: $ZLIB_LIBRARY"
+              exit 1
+          }
+      
+          Write-Host "ZLIB include: $ZLIB_INCLUDE"
+          Write-Host "ZLIB library: $ZLIB_LIBRARY"
+      
+          # Export for later steps
+          echo "ZLIB_INCLUDE=$ZLIB_INCLUDE" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$ZLIB_LIBRARY" >> $env:GITHUB_ENV
 
       ###########################################################################
       # HDF5 SERIAL BUILD
@@ -123,29 +147,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path src | Out-Null
           tar -xf hdf5.tar.gz -C src --strip-components=1
           New-Item -ItemType Directory -Force -Path build | Out-Null
-          # Find zlib.h anywhere inside the Chocolatey zlib package
-          $ZLIB_H = Get-ChildItem "C:\ProgramData\chocolatey\lib\zlib" -Recurse -Filter "zlib.h" -ErrorAction SilentlyContinue | Select-Object -First 1
-          
-          if (-not $ZLIB_H) {
-              Write-Error "Could not find zlib.h inside Chocolatey zlib installation."
-              exit 1
-          }
-          
-          # Extract include directory
-          $ZLIB_INCLUDE = $ZLIB_H.Directory.FullName
-          
-          # Derive lib directory (parallel to include)
-          $ZLIB_LIBRARY = Join-Path ($ZLIB_INCLUDE.Replace("include", "lib")) "zlib.lib"
-          
-          # Validate
-          if (-not (Test-Path $ZLIB_LIBRARY)) {
-              Write-Error "ZLIB library not found: $ZLIB_LIBRARY"
-              exit 1
-          }
-          
-          Write-Host "Using ZLIB include: $ZLIB_INCLUDE"
-          Write-Host "Using ZLIB library: $ZLIB_LIBRARY"
-
           Set-Location build
           cmake ../src -A ${{ matrix.cmake_arch }} `
             "-DBUILD_SHARED_LIBS=ON" `
@@ -154,8 +155,8 @@ jobs:
             "-DHDF5_BUILD_TESTING=OFF" `
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
-            "-DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE" `
-            "-DZLIB_LIBRARY=$ZLIB_LIBRARY" `
+            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
+            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install
