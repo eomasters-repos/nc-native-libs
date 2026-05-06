@@ -1,4 +1,4 @@
-name: Build netCDF-C (HDF5 + Parallel + PnetCDF)
+name: Build netCDF-C (HDF5 serial)
 
 on:
   push:
@@ -12,10 +12,6 @@ on:
         default: ""
       hdf5_version:
         description: "HDF5 version (1.14.x only!)"
-        required: false
-        default: "1.14.2"
-      pnetcdf_version:
-        description: "PnetCDF version"
         required: false
         default: "1.14.2"
 
@@ -55,7 +51,6 @@ jobs:
 
     env:
       HDF5_VERSION: ${{ github.event.inputs.hdf5_version || '1.14.2' }}
-      PNETCDF_VERSION: ${{ github.event.inputs.pnetcdf_version || '1.14.2' }}
       UNIDATA_TAG: ${{ github.event.inputs.unidata_tag || github.ref_name }}
 
     steps:
@@ -70,37 +65,10 @@ jobs:
       - name: Prepare build folders
         shell: bash
         run: |
-          mkdir -p build/hdf5 build/pnetcdf build/netcdf
+          mkdir -p build/hdf5 build/netcdf
 
       ###########################################################################
-      # INSTALL MPI
-      ###########################################################################
-
-      - name: Install MPI (Linux)
-        if: matrix.os == 'linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openmpi-bin libopenmpi-dev
-
-      - name: Install MPI (macOS)
-        if: matrix.os == 'macos'
-        shell: bash
-        run: |
-          brew install open-mpi
-
-      - name: Install MPI (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          choco install -y microsoft-mpi
-          choco install -y microsoft-mpi-sdk
-          $env:MPI_HOME = "C:\Program Files (x86)\Microsoft SDKs\MPI"
-          echo "MPI_HOME=$env:MPI_HOME" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      ###########################################################################
-      # HDF5 BUILD
+      # HDF5 SERIAL BUILD
       ###########################################################################
 
       - name: Build HDF5 (Unix)
@@ -116,7 +84,7 @@ jobs:
           cmake ../src -G Ninja \
             -DBUILD_SHARED_LIBS=ON \
             -DHDF5_BUILD_TOOLS=ON \
-            -DHDF5_ENABLE_PARALLEL=ON \
+            -DHDF5_ENABLE_PARALLEL=OFF \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
@@ -136,50 +104,13 @@ jobs:
           cmake ../src -A ${{ matrix.cmake_arch }} `
             -DBUILD_SHARED_LIBS=ON `
             -DHDF5_BUILD_TOOLS=ON `
-            -DHDF5_ENABLE_PARALLEL=ON `
+            -DHDF5_ENABLE_PARALLEL=OFF `
             -DCMAKE_INSTALL_PREFIX="$PWD/install" `
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release --target install
 
       ###########################################################################
-      # PNETCDF BUILD
-      ###########################################################################
-
-      - name: Build PnetCDF (Unix)
-        if: matrix.os != 'windows'
-        shell: bash
-        working-directory: build/pnetcdf
-        run: |
-          set -e
-          wget -q -O pnetcdf.tar.gz \
-            https://parallel-netcdf.github.io/Release/pnetcdf-${PNETCDF_VERSION}.tar.gz
-          mkdir src && tar xf pnetcdf.tar.gz -C src --strip-components=1
-          mkdir build && cd build
-          cmake ../src -G Ninja \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
-          cmake --install . --prefix install
-
-      - name: Build PnetCDF (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        working-directory: build/pnetcdf
-        run: |
-          $ErrorActionPreference = "Stop"
-          Invoke-WebRequest -Uri "https://parallel-netcdf.github.io/Release/pnetcdf-$env:PNETCDF_VERSION.tar.gz" -OutFile pnetcdf.tar.gz
-          New-Item -ItemType Directory -Force -Path src | Out-Null
-          tar -xf pnetcdf.tar.gz -C src --strip-components=1
-          New-Item -ItemType Directory -Force -Path build | Out-Null
-          Set-Location build
-          cmake ../src -A ${{ matrix.cmake_arch }} `
-            -DCMAKE_INSTALL_PREFIX="$PWD/install" `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DENABLE_TESTS=OFF
-          cmake --build . --config Release --target install
-
-      ###########################################################################
-      # NETCDF-C BUILD
+      # NETCDF-C SERIAL BUILD
       ###########################################################################
 
       - name: Build netCDF-C (Unix)
@@ -193,8 +124,7 @@ jobs:
             -DBUILD_SHARED_LIBS=ON \
             -DNETCDF_ENABLE_HDF5=ON \
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
-            -DNETCDF_ENABLE_PARALLEL=ON \
-            -DPnetCDF_ROOT="${{ github.workspace }}/build/pnetcdf/build/install" \
+            -DNETCDF_ENABLE_PARALLEL=OFF \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release -- -j$(nproc)
@@ -212,8 +142,7 @@ jobs:
             -DBUILD_SHARED_LIBS=ON `
             -DNETCDF_ENABLE_HDF5=ON `
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" `
-            -DNETCDF_ENABLE_PARALLEL=ON `
-            -DPnetCDF_ROOT="${{ github.workspace }}/build/pnetcdf/build/install" `
+            -DNETCDF_ENABLE_PARALLEL=OFF `
             -DCMAKE_INSTALL_PREFIX="$PWD/install" `
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release --target install
