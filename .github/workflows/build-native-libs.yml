@@ -23,22 +23,22 @@ jobs:
     strategy:
       matrix:
         include:
-          # - runner: ubuntu-latest
-          #   os: linux
-          #   arch: x64
-          #   cmake_arch: x86_64
-          # - runner: ubuntu-latest
-          #   os: linux
-          #   arch: arm64
-          #   cmake_arch: aarch64
-          # - runner: macos-latest
-          #   os: macos
-          #   arch: x64
-          #   cmake_arch: x86_64
-          # - runner: macos-latest
-          #   os: macos
-          #   arch: arm64
-          #   cmake_arch: arm64
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            cmake_arch: x86_64
+          - runner: ubuntu-latest
+            os: linux
+            arch: arm64
+            cmake_arch: aarch64
+          - runner: macos-latest
+            os: macos
+            arch: x64
+            cmake_arch: x86_64
+          - runner: macos-latest
+            os: macos
+            arch: arm64
+            cmake_arch: arm64
           - runner: windows-latest
             os: windows
             arch: x64
@@ -104,8 +104,11 @@ jobs:
           $ErrorActionPreference = "Stop"
       
           $url = "https://curl.se/download/curl-$env:CURL_VERSION.tar.gz"
-          Invoke-WebRequest -Uri $url -OutFile "curl.zip"
-          Expand-Archive curl.zip -DestinationPath curl-src
+          Invoke-WebRequest -Uri $url -OutFile "curl.tar.gz"
+          
+          # Correct: extract .tar.gz using tar, not Expand-Archive
+          tar -xf curl.tar.gz
+          Rename-Item "curl-$env:CURL_VERSION" curl-src
       
           New-Item -ItemType Directory -Force -Path curl-build | Out-Null
           Set-Location curl-build
