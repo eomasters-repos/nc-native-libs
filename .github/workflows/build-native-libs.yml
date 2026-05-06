@@ -123,15 +123,29 @@ jobs:
           New-Item -ItemType Directory -Force -Path src | Out-Null
           tar -xf hdf5.tar.gz -C src --strip-components=1
           New-Item -ItemType Directory -Force -Path build | Out-Null
-          $Z = (Get-ChildItem "C:\ProgramData\chocolatey\lib\zlib" -Recurse -Directory | Where-Object { $_.Name -eq "include" }).FullName
-          $ZLIB_INCLUDE = $Z
-          $ZLIB_LIBRARY = $Z.Replace("include", "lib") + "\zlib.lib"
-          if (-not (Test-Path $ZLIB_LIBRARY)) {
-          Write-Error "ZLIB library not found: $ZLIB_LIBRARY"
+          # Find zlib.h anywhere inside the Chocolatey zlib package
+          $ZLIB_H = Get-ChildItem "C:\ProgramData\chocolatey\lib\zlib" -Recurse -Filter "zlib.h" -ErrorAction SilentlyContinue | Select-Object -First 1
+          
+          if (-not $ZLIB_H) {
+              Write-Error "Could not find zlib.h inside Chocolatey zlib installation."
               exit 1
-          }      
+          }
+          
+          # Extract include directory
+          $ZLIB_INCLUDE = $ZLIB_H.Directory.FullName
+          
+          # Derive lib directory (parallel to include)
+          $ZLIB_LIBRARY = Join-Path ($ZLIB_INCLUDE.Replace("include", "lib")) "zlib.lib"
+          
+          # Validate
+          if (-not (Test-Path $ZLIB_LIBRARY)) {
+              Write-Error "ZLIB library not found: $ZLIB_LIBRARY"
+              exit 1
+          }
+          
           Write-Host "Using ZLIB include: $ZLIB_INCLUDE"
           Write-Host "Using ZLIB library: $ZLIB_LIBRARY"
+
           Set-Location build
           cmake ../src -A ${{ matrix.cmake_arch }} `
             "-DBUILD_SHARED_LIBS=ON" `
