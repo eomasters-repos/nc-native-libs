@@ -67,6 +67,12 @@ jobs:
         run: |
           mkdir -p build/hdf5 build/netcdf
 
+      - name: Install ZLIB (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          choco install -y zlib
+
       ###########################################################################
       # HDF5 SERIAL BUILD
       ###########################################################################
