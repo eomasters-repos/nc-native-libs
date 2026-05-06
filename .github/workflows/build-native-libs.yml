@@ -301,4 +301,45 @@ jobs:
           cd ${{ github.workspace }}/unidata-netcdf-c/build/install
           tar -czf $GITHUB_WORKSPACE/artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
 
-      - name: Package artifacts (Windows
+      - name: Package artifacts (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:GITHUB_WORKSPACE\artifacts -Force | Out-Null
+          Set-Location "${{ github.workspace }}\unidata-netcdf-c\build\install"
+          Compress-Archive -Path * -DestinationPath "$env:GITHUB_WORKSPACE\artifacts\netcdf-$env:UNIDATA_TAG-${{ matrix.os }}-${{ matrix.arch }}.zip"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcdf-${{ matrix.os }}-${{ matrix.arch }}
+          path: artifacts/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Create release (if not exists)
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.unidata_tag || github.ref_name }}
+          release_name: ${{ github.event.inputs.unidata_tag || github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded_artifacts
+
+      - name: Upload each artifact to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: downloaded_artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
