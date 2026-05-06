@@ -102,9 +102,9 @@ jobs:
           $ErrorActionPreference = "Stop"
       
           $url = "https://zlib.net/zlib-$env:ZLIB_VERSION.tar.gz"
-          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"
-          tar -xf zlib.tar.gz -C . -Force
-          Rename-Item zlib-* zlib-src
+          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"          
+          mkdir zlib-src | Out-Null
+          tar -xf zlib.tar.gz -C zlib-src --strip-components
       
           New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
           Set-Location zlib-build
