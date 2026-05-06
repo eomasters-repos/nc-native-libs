@@ -76,7 +76,7 @@ jobs:
         run: |
           set -e
       
-          curl -sSL "https://zlib.net/zlib-$ZLIB_VERSION.tar.gz" -o zlib.tar.gz
+          curl -sSLf "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz" -o zlib.tar.gz
           mkdir -p zlib-src
           tar -xf zlib.tar.gz -C zlib-src --strip-components=1
       
@@ -105,7 +105,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
       
-          $url = "https://zlib.net/zlib-$env:ZLIB_VERSION.tar.gz"
+          $url = "https://github.com/madler/zlib/archive/refs/tags/v$env:ZLIB_VERSION.tar.gz"
           Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"          
           mkdir zlib-src | Out-Null
           tar -xf zlib.tar.gz -C zlib-src --strip-components=1
@@ -122,7 +122,7 @@ jobs:
           cmake --build . --config Release --target install -- /verbosity:minimal
       
           echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$PWD/install/lib/z.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$PWD/install/lib/zlib.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
