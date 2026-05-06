@@ -64,9 +64,9 @@ jobs:
       - name: Checkout this repository (workflow)
         uses: actions/checkout@v4
 
-      - name: Show chosen versions
-        shell: bash
+      - name: Show chosen versions (Unix)
         if: matrix.os != 'windows'
+        shell: bash
         run: |
           echo "Unidata tag: $UNIDATA_TAG"
           echo "HDF5 version: $HDF5_VERSION"
@@ -77,10 +77,11 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           Write-Host "Unidata tag: $env:UNIDATA_TAG"
           Write-Host "HDF5 version: $env:HDF5_VERSION"
           Write-Host "PnetCDF version: $env:PNETCDF_VERSION"
-          Write-Host "Matrix: $(${{ matrix.os }}) / $(${{ matrix.arch }})"
+          Write-Host "Matrix: ${{ matrix.os }} / ${{ matrix.arch }}"
 
       - name: Fetch Unidata/netcdf-c at tag (Unix)
         if: matrix.os != 'windows'
@@ -163,8 +164,7 @@ jobs:
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           $ErrorActionPreference = 'Stop'
-          mkdir hdf5-src -Force
-          Set-Location $PSScriptRoot
+          New-Item -ItemType Directory -Path hdf5-src -Force | Out-Null
           $tar = "hdf5-$env:HDF5_VERSION.tar.gz"
           $url = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-$env:HDF5_VERSION/src/$tar"
           Invoke-WebRequest -Uri $url -OutFile $tar
@@ -301,45 +301,4 @@ jobs:
           cd ${{ github.workspace }}/unidata-netcdf-c/build/install
           tar -czf $GITHUB_WORKSPACE/artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
 
-      - name: Package artifacts (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path $env:GITHUB_WORKSPACE\artifacts -Force | Out-Null
-          Set-Location "${{ github.workspace }}\unidata-netcdf-c\build\install"
-          Compress-Archive -Path * -DestinationPath "$env:GITHUB_WORKSPACE\artifacts\netcdf-$env:UNIDATA_TAG-${{ matrix.os }}-${{ matrix.arch }}.zip"
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: netcdf-${{ matrix.os }}-${{ matrix.arch }}
-          path: artifacts/*
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Create release (if not exists)
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.unidata_tag || github.ref_name }}
-          release_name: ${{ github.event.inputs.unidata_tag || github.ref_name }}
-          draft: false
-          prerelease: false
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: downloaded_artifacts
-
-      - name: Upload each artifact to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: downloaded_artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package artifacts (Windows
