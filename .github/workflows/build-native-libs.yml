@@ -73,6 +73,33 @@ jobs:
           mkdir -p build/hdf5 build/pnetcdf build/netcdf
 
       ###########################################################################
+      # INSTALL MPI
+      ###########################################################################
+
+      - name: Install MPI (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+
+      - name: Install MPI (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install open-mpi
+
+      - name: Install MPI (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          choco install -y microsoft-mpi
+          choco install -y microsoft-mpi-sdk
+          $env:MPI_HOME = "C:\Program Files (x86)\Microsoft SDKs\MPI"
+          echo "MPI_HOME=$env:MPI_HOME" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      ###########################################################################
       # HDF5 BUILD
       ###########################################################################
 
