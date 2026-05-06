@@ -9,7 +9,7 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
-      unidata_tag:
+      netcdf_tag:
         description: "Tag of Unidata/netcdf-c to build"
         required: false
         default: ""
@@ -50,8 +50,8 @@ jobs:
          #   cmake_arch: ARM64
 
     env:
-      HDF5_VERSION: ${{ github.event.inputs.hdf5_version || '1.14.2' }}
-      UNIDATA_TAG: ${{ github.event.inputs.unidata_tag || github.ref_name }}
+
+      NETCDF_TAG: ${{ github.event.inputs.netcdftag || github.ref_name }}
 
     steps:
       - name: Checkout workflow repo
@@ -60,7 +60,7 @@ jobs:
       - name: Clone Unidata/netcdf-c
         shell: bash
         run: |
-          git clone --depth 1 --branch "$UNIDATA_TAG" https://github.com/Unidata/netcdf-c.git netcdf-c
+          git clone --depth 1 --branch "$NETCDF_TAG" https://github.com/Unidata/netcdf-c.git netcdf-c
 
       - name: Prepare build folders
         shell: bash
@@ -291,14 +291,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          tar -czf artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C netcdf-c/build/install .
+          tar -czf artifacts/netcdf-${NETCDF_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C netcdf-c/build/install .
 
       - name: Package artifacts (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Compress-Archive -Path "netcdf-c/build/install/*" -DestinationPath "artifacts/netcdf-$env:UNIDATA_TAG-${{ matrix.os }}-${{ matrix.arch }}.zip"
+          Compress-Archive -Path "netcdf-c/build/install/*" -DestinationPath "artifacts/netcdf-$env:NETCDF_TAG-${{ matrix.os }}-${{ matrix.arch }}.zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
