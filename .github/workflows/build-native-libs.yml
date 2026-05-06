@@ -104,7 +104,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
       
-          $url = "https://curl.se/download/curl-$env:CURL_VERSION.zip"
+          $url = "https://curl.se/download/curl-$env:CURL_VERSION.tar.gz"
           Invoke-WebRequest -Uri $url -OutFile "curl.zip"
           Expand-Archive curl.zip -DestinationPath curl-src
       
