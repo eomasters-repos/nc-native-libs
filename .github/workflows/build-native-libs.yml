@@ -67,6 +67,25 @@ jobs:
         run: |
           mkdir -p build/hdf5 build/netcdf
 
+      - name: Install curl dev (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
+      - name: Install curl dev (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install curl
+
+      - name: Install curl dev (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          choco install -y curl
+
       ###########################################################################
       # HDF5 SERIAL BUILD
       ###########################################################################
@@ -131,8 +150,12 @@ jobs:
             -DBUILD_SHARED_LIBS=ON \
             -DNETCDF_ENABLE_HDF5=ON \
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
+            -DENABLE_DAP=ON \
+            -DENABLE_NCZARR=ON \
+            -DENABLE_BYTERANGE=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || echo '')" \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release          
           cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc)
           cmake --install . --prefix install
 
@@ -145,13 +168,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path build | Out-Null
           Set-Location build
           cmake .. -A ${{ matrix.cmake_arch }} `
-            -DBUILD_SHARED_LIBS=ON `
-            -DNETCDF_ENABLE_HDF5=ON `
-            -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" `
-            -DNETCDF_ENABLE_PARALLEL=OFF `
-            -DCMAKE_INSTALL_PREFIX="$PWD/install" `
-            -DCMAKE_BUILD_TYPE=Release
+            "-DBUILD_SHARED_LIBS=ON" `
+            "-DNETCDF_ENABLE_HDF5=ON" `
+            "-DHDF5_ROOT=${{ github.workspace }}/build/hdf5/build/install" `
+            "-DENABLE_DAP=ON" `
+            "-DENABLE_NCZARR=ON" `
+            "-DENABLE_BYTERANGE=ON" `
+            "-DCURL_INCLUDE_DIR=C:/Program Files/curl/include" `
+            "-DCURL_LIBRARY=C:/Program Files/curl/lib/libcurl.lib" `
+            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install
+
 
       ###########################################################################
       # PACKAGE ARTIFACTS
