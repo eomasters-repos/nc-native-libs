@@ -217,7 +217,7 @@ jobs:
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release  -- --quiet
-          cmake --install . --prefix install  -- --quiet
+          cmake --install . --prefix install  --quiet
 
       - name: Build HDF5 (Windows)
         if: matrix.os == 'windows'
