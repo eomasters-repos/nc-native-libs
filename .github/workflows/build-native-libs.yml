@@ -148,6 +148,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DBUILD_SHARED_LIBS=OFF \
             -DCURL_DISABLE_LIBPSL=ON \
+            -DCURL_DISABLE_COOKIES=ON \
             -DCURL_ZLIB=ON \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
@@ -181,6 +182,7 @@ jobs:
             "-DCURL_USE_SCHANNEL=ON" `
             "-DCURL_USE_OPENSSL=OFF" `
             "-DCURL_DISABLE_LIBPSL=ON" `
+            "-DCURL_DISABLE_COOKIES=ON" `
             "-DCURL_ZLIB=ON" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
