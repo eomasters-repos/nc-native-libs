@@ -104,7 +104,12 @@ jobs:
           Remove-Item -Recurse -Force unidata-netcdf-c -ErrorAction SilentlyContinue
           git clone --depth 1 --branch $env:UNIDATA_TAG https://github.com/Unidata/netcdf-c.git unidata-netcdf-c
           Set-Location unidata-netcdf-c
-          git submodule update --init --recursive -ErrorAction SilentlyContinue
+          try {
+            git submodule update --init --recursive
+            Write-Host "Submodules initialized/updated"
+          } catch {
+            Write-Warning "git submodule update failed or no submodules present: $($_.Exception.Message)"
+          }
           Write-Host "Checked out Unidata/netcdf-c at $env:UNIDATA_TAG"
 
       - name: Install common tools (Linux/macOS)
