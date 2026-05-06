@@ -66,6 +66,60 @@ jobs:
         run: |
           mkdir -p build/hdf5 build/netcdf
 
+      - name: Build zlib (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+      
+          curl -sSL "https://zlib.net/zlib-$ZLIB_VERSION.tar.gz" -o zlib.tar.gz
+          mkdir -p zlib-src
+          tar -xf zlib.tar.gz -C zlib-src --strip-components=1
+      
+          mkdir -p zlib-build
+          cd zlib-build
+      
+          cmake ../zlib-src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DZLIB_BUILD_SHARED=ON \
+            --log-level=WARNING
+      
+          cmake --build . --target install -- -s
+      
+          echo "ZLIB_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
+      
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
+          else
+            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
+          fi
+
+      - name: Build zlib (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+      
+          $url = "https://zlib.net/zlib-$env:ZLIB_VERSION.tar.gz"
+          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"
+          tar -xf zlib.tar.gz -C . -Force
+          Rename-Item zlib-* zlib-src
+      
+          New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
+          Set-Location zlib-build
+      
+          cmake ../zlib-src -A x64 `
+            "-DZLIB_BUILD_SHARED=ON" `
+            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_BUILD_TYPE=Release" `
+            "--log-level=WARNING"
+      
+          cmake --build . --config Release --target install -- /verbosity:minimal
+      
+          echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$PWD/install/lib/z.lib" >> $env:GITHUB_ENV
+
       - name: Build curl (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -128,61 +182,6 @@ jobs:
       
           echo "CURL_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
           echo "CURL_LIBRARY=$PWD/install/lib/libcurl.lib" >> $env:GITHUB_ENV
-
-      - name: Build zlib (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -e
-      
-          curl -sSL "https://zlib.net/zlib-$ZLIB_VERSION.tar.gz" -o zlib.tar.gz
-          mkdir -p zlib-src
-          tar -xf zlib.tar.gz -C zlib-src --strip-components=1
-      
-          mkdir -p zlib-build
-          cd zlib-build
-      
-          cmake ../zlib-src \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DZLIB_BUILD_SHARED=ON \
-            --log-level=WARNING
-      
-          cmake --build . --target install -- -s
-      
-          echo "ZLIB_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
-      
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
-          else
-            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
-          fi
-
-      - name: Build zlib (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-      
-          $url = "https://zlib.net/zlib-$env:ZLIB_VERSION.tar.gz"
-          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"
-          tar -xf zlib.tar.gz -C . -Force
-          Rename-Item zlib-* zlib-src
-      
-          New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
-          Set-Location zlib-build
-      
-          cmake ../zlib-src -A x64 `
-            "-DZLIB_BUILD_SHARED=ON" `
-            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
-            "-DCMAKE_BUILD_TYPE=Release" `
-            "--log-level=WARNING"
-      
-          cmake --build . --config Release --target install -- /verbosity:minimal
-      
-          echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$PWD/install/lib/z.lib" >> $env:GITHUB_ENV
-
 
       ###########################################################################
       # HDF5 SERIAL BUILD
