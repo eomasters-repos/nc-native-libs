@@ -1,5 +1,8 @@
 name: Build netCDF-C (HDF5 serial)
-
+env:
+  ZLIB_VERSION: "1.3.1"
+  CURL_VERSION: "8.7.1"
+  HDF5_VERSION: "1.14.2"
 on:
   push:
     tags:
@@ -13,7 +16,7 @@ on:
       hdf5_version:
         description: "HDF5 version (1.14.x only!)"
         required: false
-        default: "1.14.2"
+        default: $env:HDF5_VERSION
 
 permissions:
   contents: write
@@ -68,56 +71,120 @@ jobs:
         run: |
           mkdir -p build/hdf5 build/netcdf
 
-      - name: Install curl dev (Linux)
-        if: matrix.os == 'linux'
+      - name: Build curl (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          set -e
+      
+          curl -sSL "https://curl.se/download/curl-$CURL_VERSION.tar.gz" -o curl.tar.gz
+          mkdir -p curl-src
+          tar -xf curl.tar.gz -C curl-src --strip-components=1
+      
+          mkdir -p curl-build
+          cd curl-build
+      
+          TLS_BACKEND="-DCURL_USE_OPENSSL=ON"
+      
+          cmake ../curl-src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCURL_ZLIB=ON \
+            -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
+            -DZLIB_LIBRARY=$ZLIB_LIBRARY \
+            $TLS_BACKEND \
+            --log-level=WARNING
+      
+          cmake --build . --target install -- -s
+      
+          echo "CURL_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
+          echo "CURL_LIBRARY=$PWD/install/lib/libcurl.a" >> $GITHUB_ENV
 
-      - name: Install curl dev (macOS)
-        if: matrix.os == 'macos'
-        shell: bash
-        run: |
-          brew install curl
 
-      - name: Install curl (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          choco install -y curl --no-progress
-
-      - name: Build zlib (Windows)
-        if: matrix.os == 'windows'
+      - name: Build curl (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
       
-          Write-Host "Downloading zlib sources..."
-          Invoke-WebRequest `
-            -Uri "https://zlib.net/current/zlib.tar.gz" `
-            -OutFile "zlib.tar.gz"
+          $url = "https://curl.se/download/curl-$env:CURL_VERSION.zip"
+          Invoke-WebRequest -Uri $url -OutFile "curl.zip"
+          Expand-Archive curl.zip -DestinationPath curl-src
       
-          Write-Host "Extracting zlib..."
-          New-Item -ItemType Directory -Force -Path zlib-src | Out-Null
+          New-Item -ItemType Directory -Force -Path curl-build | Out-Null
+          Set-Location curl-build
+      
+          cmake ../curl-src -A x64 `
+            "-DBUILD_SHARED_LIBS=OFF" `
+            "-DCURL_USE_SCHANNEL=ON" `
+            "-DCURL_USE_OPENSSL=OFF" `
+            "-DCURL_ZLIB=ON" `
+            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
+            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
+            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_BUILD_TYPE=Release" `
+            "--log-level=WARNING"
+      
+          cmake --build . --config Release --target install -- /verbosity:minimal
+      
+          echo "CURL_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
+          echo "CURL_LIBRARY=$PWD/install/lib/libcurl.lib" >> $env:GITHUB_ENV
+
+      - name: Build zlib (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+      
+          curl -sSL "https://zlib.net/zlib-$ZLIB_VERSION.tar.gz" -o zlib.tar.gz
+          mkdir -p zlib-src
           tar -xf zlib.tar.gz -C zlib-src --strip-components=1
       
-          Write-Host "Configuring zlib..."
+          mkdir -p zlib-build
+          cd zlib-build
+      
+          cmake ../zlib-src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DZLIB_BUILD_SHARED=ON \
+            --log-level=WARNING
+      
+          cmake --build . --target install -- -s
+      
+          echo "ZLIB_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
+      
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
+          else
+            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
+          fi
+
+      - name: Build zlib (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+      
+          $url = "https://zlib.net/zlib-$env:ZLIB_VERSION.tar.gz"
+          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"
+          tar -xf zlib.tar.gz -C . -Force
+          Rename-Item zlib-* zlib-src
+      
           New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
           Set-Location zlib-build
       
-          cmake ../zlib-src -A x64 "--log-level=WARNING" `
+          cmake ../zlib-src -A x64 `
             "-DZLIB_BUILD_SHARED=ON" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
-            "-DCMAKE_BUILD_TYPE=Release"
+            "-DCMAKE_BUILD_TYPE=Release" `
+            "--log-level=WARNING"
       
-          Write-Host "Building zlib..."
-          cmake --build . --config Release --target install /verbosity:minimal
+          cmake --build . --config Release --target install -- /verbosity:minimal
       
-          # Export include + lib paths
           echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
           echo "ZLIB_LIBRARY=$PWD/install/lib/z.lib" >> $env:GITHUB_ENV
+
 
       ###########################################################################
       # HDF5 SERIAL BUILD
@@ -184,7 +251,7 @@ jobs:
             -DBUILD_SHARED_LIBS=ON \
             -DNETCDF_ENABLE_HDF5=ON \
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
-            -DENABLE_DAP=ON \
+            -NETCDF_ENABLE_DAP=ON \
             -DENABLE_NCZARR=ON \
             -DENABLE_BYTERANGE=ON \
             -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || echo '')" \
@@ -204,13 +271,17 @@ jobs:
           cmake .. -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
             "-DBUILD_SHARED_LIBS=ON" `
             "-DNETCDF_ENABLE_HDF5=ON" `
+            "-DENABLE_TESTS=OFF" `.
             "-DHDF5_ROOT=${{ github.workspace }}/build/hdf5/build/install" `
             "-DENABLE_DAP=ON" `
             "-DENABLE_NCZARR=ON" `
             "-DENABLE_BYTERANGE=ON" `
-            "-DCURL_INCLUDE_DIR=C:/Program Files/curl/include" `
-            "-DCURL_LIBRARY=C:/Program Files/curl/lib/libcurl.lib" `
+            "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
+            "-DCURL_LIBRARY=$env:CURL_LIBRARY" `
+            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
+            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DHDF5_ROOT=$env:HDF5_INSTALL_PREFIX" `
             "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install /verbosity:minimal
 
