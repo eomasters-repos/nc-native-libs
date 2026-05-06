@@ -1,0 +1,159 @@
+name: Build netCDF-C (netCDF-4 + Parallel) and attach to release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  HDF5_VERSION: "1.14.2"
+  PNETCDF_VERSION: "1.14.2"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            cmake_arch: x86_64
+          - runner: ubuntu-latest
+            os: linux
+            arch: arm64
+            cmake_arch: aarch64
+          - runner: macos-latest
+            os: macos
+            arch: x64
+            cmake_arch: x86_64
+          - runner: macos-latest
+            os: macos
+            arch: arm64
+            cmake_arch: arm64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            cmake_arch: x64
+          - runner: windows-latest
+            os: windows
+            arch: arm64
+            cmake_arch: ARM64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install common tools (Linux/macOS)
+        if: matrix.os != 'windows'
+        run: |
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake ninja-build pkg-config wget tar libcurl4-openssl-dev zlib1g-dev libssl-dev
+            sudo apt-get install -y libopenmpi-dev openmpi-bin
+          else
+            brew update
+            brew install cmake ninja open-mpi wget pkg-config zlib curl
+          fi
+
+      - name: Install MS-MPI on Windows
+        if: matrix.os == 'windows'
+        run: |
+          choco install -y microsoft-mpi
+          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' --version=3.26.0
+
+      - name: Build and install HDF5 (parallel)
+        run: |
+          set -e
+          mkdir -p deps && cd deps
+          wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-${HDF5_VERSION}/src/hdf5-${HDF5_VERSION}.tar.gz
+          tar xf hdf5-${HDF5_VERSION}.tar.gz
+          mkdir -p build-hdf5 && cd build-hdf5
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            cmake ../hdf5-${HDF5_VERSION} -A ${{ matrix.cmake_arch }} -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+            cmake --build . --config Release --target install
+          else
+            cmake ../hdf5-${HDF5_VERSION} -G Ninja -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+            cmake --build . --config Release
+            cmake --install . --prefix install
+          fi
+          echo "HDF5 installed to $(pwd)/install"
+
+      - name: Build and install PnetCDF (for classic parallel)
+        run: |
+          set -e
+          cd deps
+          wget -q https://parallel-netcdf.github.io/Release/pnetcdf-${PNETCDF_VERSION}.tar.gz
+          tar xf pnetcdf-${PNETCDF_VERSION}.tar.gz
+          mkdir -p build-pnetcdf && cd build-pnetcdf
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            cmake ../pnetcdf-${PNETCDF_VERSION} -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF
+            cmake --build . --config Release --target install
+          else
+            cmake ../pnetcdf-${PNETCDF_VERSION} -G Ninja -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+            cmake --build . --config Release
+            cmake --install . --prefix install
+          fi
+          echo "PnetCDF installed to $(pwd)/install"
+
+      - name: Configure netCDF-C with HDF5 and Parallel I/O
+        run: |
+          mkdir -p build && cd build
+          cmake .. -G Ninja \
+            -DBUILD_SHARED_LIBS=ON \
+            -DNETCDF_ENABLE_HDF5=ON \
+            -DHDF5_ROOT=$(pwd)/../deps/build-hdf5/install \
+            -DNETCDF_ENABLE_PARALLEL=ON \
+            -DPnetCDF_ROOT=$(pwd)/../deps/build-pnetcdf/install \
+            -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and install netCDF-C
+        run: |
+          cd build
+          cmake --build . --config Release -- -j$(nproc || sysctl -n hw.ncpu)
+          cmake --install . --config Release --prefix install
+
+      - name: Package artifacts
+        run: |
+          mkdir -p artifacts
+          cd build/install
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            powershell -Command "Compress-Archive -Path * -DestinationPath $env:GITHUB_WORKSPACE/artifacts/netcdf-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.zip"
+          else
+            tar -czf $GITHUB_WORKSPACE/artifacts/netcdf-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcdf-${{ matrix.os }}-${{ matrix.arch }}
+          path: artifacts/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded_artifacts
+
+      - name: Upload each artifact to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: downloaded_artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
