@@ -125,15 +125,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path build | Out-Null
           Set-Location build
           cmake ../src -A ${{ matrix.cmake_arch }} `
-            -DBUILD_SHARED_LIBS=ON `
-            -DHDF5_BUILD_TOOLS=ON `
-            -DBUILD_TESTING=OFF `
-            -DHDF5_BUILD_TESTING=OFF `
-            -DHDF5_BUILD_EXAMPLES=OFF `
-            -DHDF5_BUILD_HL_TOOLS=OFF `
-            -DHDF5_ENABLE_Z_LIB_SUPPORT=OFF `
-            -DCMAKE_INSTALL_PREFIX="$PWD/install" `
-            -DCMAKE_BUILD_TYPE=Release
+            "-DBUILD_SHARED_LIBS=ON" `
+            "-DHDF5_BUILD_TOOLS=ON" `
+            "-DBUILD_TESTING=OFF" `
+            "-DHDF5_BUILD_TESTING=OFF" `
+            "-DHDF5_BUILD_EXAMPLES=OFF" `
+            "-DHDF5_BUILD_HL_TOOLS=OFF" `
+            "-DZLIB_INCLUDE_DIR=C:/Program Files/zlib/include" `
+            "-DZLIB_LIBRARY=C:/Program Files/zlib/lib/zlib.lib" `
+            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install
 
       ###########################################################################
