@@ -13,10 +13,6 @@ on:
         description: "Tag of Unidata/netcdf-c to build"
         required: false
         default: ""
-      hdf5_version:
-        description: "HDF5 version (1.14.x only!)"
-        required: false
-        default: $env:HDF5_VERSION
 
 permissions:
   contents: write
