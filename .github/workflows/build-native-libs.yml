@@ -114,15 +114,15 @@ jobs:
           Set-Location zlib-build
       
           cmake ../zlib-src -A x64 `
-            "-DZLIB_BUILD_SHARED=ON" `
+            "-DBUILD_SHARED_LIBS=OFF" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release" `
             "--log-level=WARNING"
-      
+
           cmake --build . --config Release --target install -- /verbosity:minimal
-      
+
           echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$PWD/install/lib/zlib.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$PWD/install/lib/zlibstatic.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
@@ -188,8 +188,8 @@ jobs:
             "-DCMAKE_BUILD_TYPE=Release" `
             "--log-level=WARNING"
       
-          cmake --build . --config Release --target install -- /verbosity:minimal
-      
+          cmake --build . --config Release --target install -- /verbosity:quiet /nologo
+
           echo "CURL_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
           echo "CURL_LIBRARY=$PWD/install/lib/libcurl.lib" >> $env:GITHUB_ENV
 
