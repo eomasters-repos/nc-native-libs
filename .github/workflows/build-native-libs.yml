@@ -81,35 +81,42 @@ jobs:
         run: |
           brew install curl
 
-      - name: Install curl, zlib (Windows)
+      - name: Install curl (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           choco install -y curl
-          choco install -y zlib
 
-          $ZLIB_H = Get-ChildItem "C:\ProgramData\chocolatey\lib\zlib" -Recurse -Filter "zlib.h" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-          if (-not $ZLIB_H) {
-              Write-Error "Could not find zlib.h inside Chocolatey zlib installation."
-              exit 1
-          }
+      - name: Build zlib (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
       
-          $ZLIB_INCLUDE = $ZLIB_H.Directory.FullName
-          $ZLIB_LIBRARY = Join-Path ($ZLIB_INCLUDE.Replace("include", "lib")) "zlib.lib"
+          Write-Host "Downloading zlib sources..."
+          Invoke-WebRequest `
+            -Uri "https://zlib.net/current/zlib.tar.gz" `
+            -OutFile "zlib.tar.gz"
       
-          if (-not (Test-Path $ZLIB_LIBRARY)) {
-              Write-Error "ZLIB library not found: $ZLIB_LIBRARY"
-              exit 1
-          }
+          Write-Host "Extracting zlib..."
+          New-Item -ItemType Directory -Force -Path zlib-src | Out-Null
+          tar -xf zlib.tar.gz -C zlib-src --strip-components=1
       
-          Write-Host "ZLIB include: $ZLIB_INCLUDE"
-          Write-Host "ZLIB library: $ZLIB_LIBRARY"
+          Write-Host "Configuring zlib..."
+          New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
+          Set-Location zlib-build
       
-          # Export for later steps
-          echo "ZLIB_INCLUDE=$ZLIB_INCLUDE" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$ZLIB_LIBRARY" >> $env:GITHUB_ENV
+          cmake ../zlib-src -A x64 `
+            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_BUILD_TYPE=Release"
+      
+          Write-Host "Building zlib..."
+          cmake --build . --config Release --target install
+      
+          # Export include + lib paths
+          echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$PWD/install/lib/zlib.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # HDF5 SERIAL BUILD
