@@ -83,6 +83,18 @@ jobs:
           Write-Host "PnetCDF version: $env:PNETCDF_VERSION"
           Write-Host "Matrix: ${{ matrix.os }} / ${{ matrix.arch }}"
 
+      - name: Create deps directory
+        shell: bash
+        run: |
+          mkdir -p unidata-netcdf-c/deps
+
+      - name: Create deps directory (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "unidata-netcdf-c\deps" | Out-Null
+
+
       - name: Fetch Unidata/netcdf-c at tag (Unix)
         if: matrix.os != 'windows'
         shell: bash
