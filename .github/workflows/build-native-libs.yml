@@ -1,5 +1,6 @@
 name: Build netCDF-C (netCDF-4 + Parallel) from Unidata tag and attach to release
 
+# Trigger: Tag push or manual execution with parameters
 on:
   push:
     tags:
@@ -18,6 +19,12 @@ on:
         description: 'PnetCDF version to build (e.g. 1.14.2)'
         required: false
         default: '1.14.2'
+
+# Higher permission for release operation
+permissions:
+  contents: write
+  packages: write
+  actions: read
 
 jobs:
   build:
@@ -51,14 +58,9 @@ jobs:
             cmake_arch: ARM64
 
     env:
-      # Inputs or defaults
       HDF5_VERSION: ${{ github.event.inputs.hdf5_version || '1.14.2' }}
       PNETCDF_VERSION: ${{ github.event.inputs.pnetcdf_version || '1.14.2' }}
       UNIDATA_TAG: ${{ github.event.inputs.unidata_tag || github.ref_name }}
-      # Cache keys include OS/arch and versions so caches are separated per platform and version
-      HDF5_CACHE_KEY: hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-${{ env.UNIDATA_TAG }}
-      PNETCDF_CACHE_KEY: pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-${{ env.UNIDATA_TAG }}
-      NETCDF_CACHE_KEY: netcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.UNIDATA_TAG }}
 
     steps:
       - name: Checkout this repository (workflow)
@@ -69,6 +71,7 @@ jobs:
           echo "Unidata tag: $UNIDATA_TAG"
           echo "HDF5 version: $HDF5_VERSION"
           echo "PnetCDF version: $PNETCDF_VERSION"
+          echo "Matrix: ${{ matrix.os }} / ${{ matrix.arch }}"
 
       - name: Fetch Unidata/netcdf-c at tag
         run: |
@@ -100,15 +103,16 @@ jobs:
           choco install -y ccache
 
       # -------------------------
-      # Cache HDF5 build/install
+      # Restore HDF5 cache
       # -------------------------
       - name: Restore HDF5 cache
+        id: restore_hdf5_cache
         uses: actions/cache@v4
         with:
           path: |
             unidata-netcdf-c/deps/build-hdf5/install
             unidata-netcdf-c/deps/build-hdf5
-          key: ${{ env.HDF5_CACHE_KEY }}
+          key: hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-${{ env.UNIDATA_TAG }}
           restore-keys: |
             hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-
             hdf5-${{ matrix.os }}-${{ matrix.arch }}-
@@ -120,8 +124,9 @@ jobs:
           set -e
           mkdir -p $PWD/hdf5-src
           cd $PWD
-          wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-${HDF5_VERSION}/src/hdf5-${HDF5_VERSION}.tar.gz
-          tar xf hdf5-${HDF5_VERSION}.tar.gz -C hdf5-src --strip-components=1
+          HDF5_TAR="hdf5-${HDF5_VERSION}.tar.gz"
+          wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-${HDF5_VERSION}/src/${HDF5_TAR}
+          tar xf ${HDF5_TAR} -C hdf5-src --strip-components=1
           mkdir -p build-hdf5 && cd build-hdf5
           if [ "${{ matrix.os }}" = "windows" ]; then
             cmake ../hdf5-src -A ${{ matrix.cmake_arch }} -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
@@ -134,15 +139,16 @@ jobs:
           echo "HDF5 installed to $(pwd)/install"
 
       # -------------------------
-      # Cache PnetCDF build/install
+      # Restore PnetCDF cache
       # -------------------------
       - name: Restore PnetCDF cache
+        id: restore_pnetcdf_cache
         uses: actions/cache@v4
         with:
           path: |
             unidata-netcdf-c/deps/build-pnetcdf/install
             unidata-netcdf-c/deps/build-pnetcdf
-          key: ${{ env.PNETCDF_CACHE_KEY }}
+          key: pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-${{ env.UNIDATA_TAG }}
           restore-keys: |
             pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-
             pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-
@@ -152,8 +158,9 @@ jobs:
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           set -e
-          wget -q https://parallel-netcdf.github.io/Release/pnetcdf-${PNETCDF_VERSION}.tar.gz
-          tar xf pnetcdf-${PNETCDF_VERSION}.tar.gz
+          PNET_TAR="pnetcdf-${PNETCDF_VERSION}.tar.gz"
+          wget -q https://parallel-netcdf.github.io/Release/pnetcdf-${PNETCDF_VERSION}.tar.gz -O ${PNET_TAR}
+          tar xf ${PNET_TAR}
           mkdir -p build-pnetcdf && cd build-pnetcdf
           if [ "${{ matrix.os }}" = "windows" ]; then
             cmake ../pnetcdf-${PNETCDF_VERSION} -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF
@@ -166,16 +173,17 @@ jobs:
           echo "PnetCDF installed to $(pwd)/install"
 
       # -------------------------
-      # Cache netCDF build/install
+      # Restore netCDF build cache
       # -------------------------
       - name: Restore netCDF build cache
+        id: restore_netcdf_cache
         uses: actions/cache@v4
         with:
           path: |
             unidata-netcdf-c/build/install
             unidata-netcdf-c/build
             ~/.ccache
-          key: ${{ env.NETCDF_CACHE_KEY }}
+          key: netcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.UNIDATA_TAG }}
           restore-keys: |
             netcdf-${{ matrix.os }}-${{ matrix.arch }}-
 
@@ -217,7 +225,7 @@ jobs:
             cmake --install . --prefix install
           fi
 
-      - name: Save netCDF cache (explicit step to ensure cache key is created)
+      - name: Save netCDF cache (ensure cache key is created)
         if: always()
         uses: actions/cache@v4
         with:
@@ -225,7 +233,7 @@ jobs:
             unidata-netcdf-c/build/install
             unidata-netcdf-c/build
             ~/.ccache
-          key: ${{ env.NETCDF_CACHE_KEY }}
+          key: netcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.UNIDATA_TAG }}
 
       - name: Package artifacts
         run: |
@@ -268,5 +276,3 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: downloaded_artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
