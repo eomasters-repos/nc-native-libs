@@ -1,6 +1,5 @@
 name: Build netCDF-C (netCDF-4 + Parallel) from Unidata tag and attach to release
 
-# Trigger: Tag push or manual execution with parameters
 on:
   push:
     tags:
@@ -20,7 +19,6 @@ on:
         required: false
         default: '1.14.2'
 
-# Higher permission for release operation
 permissions:
   contents: write
   packages: write
@@ -67,13 +65,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Show chosen versions
+        shell: bash
+        if: matrix.os != 'windows'
         run: |
           echo "Unidata tag: $UNIDATA_TAG"
           echo "HDF5 version: $HDF5_VERSION"
           echo "PnetCDF version: $PNETCDF_VERSION"
           echo "Matrix: ${{ matrix.os }} / ${{ matrix.arch }}"
 
-      - name: Fetch Unidata/netcdf-c at tag
+      - name: Show chosen versions (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          Write-Host "Unidata tag: $env:UNIDATA_TAG"
+          Write-Host "HDF5 version: $env:HDF5_VERSION"
+          Write-Host "PnetCDF version: $env:PNETCDF_VERSION"
+          Write-Host "Matrix: $(${{ matrix.os }}) / $(${{ matrix.arch }})"
+
+      - name: Fetch Unidata/netcdf-c at tag (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
           set -e
           echo "Cloning Unidata/netcdf-c tag: $UNIDATA_TAG"
@@ -83,8 +94,21 @@ jobs:
           git submodule update --init --recursive || true
           echo "Checked out Unidata/netcdf-c at $UNIDATA_TAG"
 
+      - name: Fetch Unidata/netcdf-c at tag (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host "Cloning Unidata/netcdf-c tag: $env:UNIDATA_TAG"
+          Remove-Item -Recurse -Force unidata-netcdf-c -ErrorAction SilentlyContinue
+          git clone --depth 1 --branch $env:UNIDATA_TAG https://github.com/Unidata/netcdf-c.git unidata-netcdf-c
+          Set-Location unidata-netcdf-c
+          git submodule update --init --recursive -ErrorAction SilentlyContinue
+          Write-Host "Checked out Unidata/netcdf-c at $env:UNIDATA_TAG"
+
       - name: Install common tools (Linux/macOS)
         if: matrix.os != 'windows'
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "linux" ]; then
             sudo apt-get update
@@ -97,14 +121,13 @@ jobs:
 
       - name: Install MS-MPI and tools on Windows
         if: matrix.os == 'windows'
+        shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           choco install -y microsoft-mpi
           choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
           choco install -y ccache
 
-      # -------------------------
-      # Restore HDF5 cache
-      # -------------------------
       - name: Restore HDF5 cache
         id: restore_hdf5_cache
         uses: actions/cache@v4
@@ -117,8 +140,9 @@ jobs:
             hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-
             hdf5-${{ matrix.os }}-${{ matrix.arch }}-
 
-      - name: Build and install HDF5 (parallel) if cache miss
-        if: steps.restore_hdf5_cache.outputs.cache-hit != 'true'
+      - name: Build and install HDF5 (parallel) if cache miss (Unix)
+        if: steps.restore_hdf5_cache.outputs.cache-hit != 'true' && matrix.os != 'windows'
+        shell: bash
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           set -e
@@ -128,19 +152,29 @@ jobs:
           wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-${HDF5_VERSION}/src/${HDF5_TAR}
           tar xf ${HDF5_TAR} -C hdf5-src --strip-components=1
           mkdir -p build-hdf5 && cd build-hdf5
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake ../hdf5-src -A ${{ matrix.cmake_arch }} -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
-            cmake --build . --config Release --target install
-          else
-            cmake ../hdf5-src -G Ninja -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
-            cmake --build . --config Release
-            cmake --install . --prefix install
-          fi
+          cmake ../hdf5-src -G Ninja -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+          cmake --install . --prefix install
           echo "HDF5 installed to $(pwd)/install"
 
-      # -------------------------
-      # Restore PnetCDF cache
-      # -------------------------
+      - name: Build and install HDF5 (parallel) if cache miss (Windows)
+        if: steps.restore_hdf5_cache.outputs.cache-hit != 'true' && matrix.os == 'windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
+        run: |
+          $ErrorActionPreference = 'Stop'
+          mkdir hdf5-src -Force
+          Set-Location $PSScriptRoot
+          $tar = "hdf5-$env:HDF5_VERSION.tar.gz"
+          $url = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-$env:HDF5_VERSION/src/$tar"
+          Invoke-WebRequest -Uri $url -OutFile $tar
+          tar -xf $tar -C hdf5-src --strip-components=1
+          New-Item -ItemType Directory -Path build-hdf5 -Force | Out-Null
+          Set-Location build-hdf5
+          cmake ../hdf5-src -A ${{ matrix.cmake_arch }} -DBUILD_SHARED_LIBS=ON -DHDF5_BUILD_TOOLS=ON -DHDF5_ENABLE_PARALLEL=ON -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release --target install
+          Write-Host "HDF5 installed to $(Get-Location)/install"
+
       - name: Restore PnetCDF cache
         id: restore_pnetcdf_cache
         uses: actions/cache@v4
@@ -153,8 +187,9 @@ jobs:
             pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-
             pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-
 
-      - name: Build and install PnetCDF (classic parallel) if cache miss
-        if: steps.restore_pnetcdf_cache.outputs.cache-hit != 'true'
+      - name: Build and install PnetCDF (classic parallel) if cache miss (Unix)
+        if: steps.restore_pnetcdf_cache.outputs.cache-hit != 'true' && matrix.os != 'windows'
+        shell: bash
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           set -e
@@ -162,19 +197,26 @@ jobs:
           wget -q https://parallel-netcdf.github.io/Release/pnetcdf-${PNETCDF_VERSION}.tar.gz -O ${PNET_TAR}
           tar xf ${PNET_TAR}
           mkdir -p build-pnetcdf && cd build-pnetcdf
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake ../pnetcdf-${PNETCDF_VERSION} -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF
-            cmake --build . --config Release --target install
-          else
-            cmake ../pnetcdf-${PNETCDF_VERSION} -G Ninja -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
-            cmake --build . --config Release
-            cmake --install . --prefix install
-          fi
+          cmake ../pnetcdf-${PNETCDF_VERSION} -G Ninja -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+          cmake --install . --prefix install
           echo "PnetCDF installed to $(pwd)/install"
 
-      # -------------------------
-      # Restore netCDF build cache
-      # -------------------------
+      - name: Build and install PnetCDF (classic parallel) if cache miss (Windows)
+        if: steps.restore_pnetcdf_cache.outputs.cache-hit != 'true' && matrix.os == 'windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tar = "pnetcdf-$env:PNETCDF_VERSION.tar.gz"
+          Invoke-WebRequest -Uri "https://parallel-netcdf.github.io/Release/pnetcdf-$env:PNETCDF_VERSION.tar.gz" -OutFile $tar
+          tar -xf $tar
+          New-Item -ItemType Directory -Path build-pnetcdf -Force | Out-Null
+          Set-Location build-pnetcdf
+          cmake ../pnetcdf-$env:PNETCDF_VERSION -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX=$PWD/install -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF
+          cmake --build . --config Release --target install
+          Write-Host "PnetCDF installed to $(Get-Location)/install"
+
       - name: Restore netCDF build cache
         id: restore_netcdf_cache
         uses: actions/cache@v4
@@ -187,43 +229,59 @@ jobs:
           restore-keys: |
             netcdf-${{ matrix.os }}-${{ matrix.arch }}-
 
-      - name: Configure netCDF-C with HDF5 and Parallel I/O
+      - name: Configure netCDF-C with HDF5 and Parallel I/O (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         working-directory: ${{ github.workspace }}/unidata-netcdf-c
         run: |
           set -e
           mkdir -p build && cd build
           HDF5_ROOT="${{ github.workspace }}/unidata-netcdf-c/deps/build-hdf5/install"
           PNETCDF_ROOT="${{ github.workspace }}/unidata-netcdf-c/deps/build-pnetcdf/install"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake .. -A ${{ matrix.cmake_arch }} \
-              -DBUILD_SHARED_LIBS=ON \
-              -DNETCDF_ENABLE_HDF5=ON \
-              -DHDF5_ROOT="$HDF5_ROOT" \
-              -DNETCDF_ENABLE_PARALLEL=ON \
-              -DPnetCDF_ROOT="$PNETCDF_ROOT" \
-              -DCMAKE_INSTALL_PREFIX=$PWD/install \
-              -DCMAKE_BUILD_TYPE=Release
-          else
-            cmake .. -G Ninja \
-              -DBUILD_SHARED_LIBS=ON \
-              -DNETCDF_ENABLE_HDF5=ON \
-              -DHDF5_ROOT="$HDF5_ROOT" \
-              -DNETCDF_ENABLE_PARALLEL=ON \
-              -DPnetCDF_ROOT="$PNETCDF_ROOT" \
-              -DCMAKE_INSTALL_PREFIX=$PWD/install \
-              -DCMAKE_BUILD_TYPE=Release
-          fi
+          cmake .. -G Ninja \
+            -DBUILD_SHARED_LIBS=ON \
+            -DNETCDF_ENABLE_HDF5=ON \
+            -DHDF5_ROOT="$HDF5_ROOT" \
+            -DNETCDF_ENABLE_PARALLEL=ON \
+            -DPnetCDF_ROOT="$PNETCDF_ROOT" \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build and install netCDF-C
+      - name: Configure netCDF-C with HDF5 and Parallel I/O (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/unidata-netcdf-c
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path build -Force | Out-Null
+          Set-Location build
+          $HDF5_ROOT = Join-Path $PSScriptRoot "deps/build-hdf5/install"
+          $PNETCDF_ROOT = Join-Path $PSScriptRoot "deps/build-pnetcdf/install"
+          cmake .. -A ${{ matrix.cmake_arch }} `
+            -DBUILD_SHARED_LIBS=ON `
+            -DNETCDF_ENABLE_HDF5=ON `
+            -DHDF5_ROOT="$HDF5_ROOT" `
+            -DNETCDF_ENABLE_PARALLEL=ON `
+            -DPnetCDF_ROOT="$PNETCDF_ROOT" `
+            -DCMAKE_INSTALL_PREFIX=$PWD/install `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and install netCDF-C (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/build
         run: |
           set -e
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake --build . --config Release --target install
-          else
-            cmake --build . --config Release -- -j$(nproc || sysctl -n hw.ncpu)
-            cmake --install . --prefix install
-          fi
+          cmake --build . --config Release -- -j$(nproc || sysctl -n hw.ncpu)
+          cmake --install . --prefix install
+
+      - name: Build and install netCDF-C (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/unidata-netcdf-c/build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cmake --build . --config Release --target install
 
       - name: Save netCDF cache (ensure cache key is created)
         if: always()
@@ -235,15 +293,22 @@ jobs:
             ~/.ccache
           key: netcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.UNIDATA_TAG }}
 
-      - name: Package artifacts
+      - name: Package artifacts (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
           mkdir -p $GITHUB_WORKSPACE/artifacts
           cd ${{ github.workspace }}/unidata-netcdf-c/build/install
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            powershell -Command "Compress-Archive -Path * -DestinationPath $env:GITHUB_WORKSPACE/artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.zip"
-          else
-            tar -czf $GITHUB_WORKSPACE/artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
-          fi
+          tar -czf $GITHUB_WORKSPACE/artifacts/netcdf-${UNIDATA_TAG}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
+
+      - name: Package artifacts (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:GITHUB_WORKSPACE\artifacts -Force | Out-Null
+          Set-Location "${{ github.workspace }}\unidata-netcdf-c\build\install"
+          Compress-Archive -Path * -DestinationPath "$env:GITHUB_WORKSPACE\artifacts\netcdf-$env:UNIDATA_TAG-${{ matrix.os }}-${{ matrix.arch }}.zip"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -276,3 +341,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: downloaded_artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
