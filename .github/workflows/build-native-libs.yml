@@ -51,10 +51,14 @@ jobs:
             cmake_arch: ARM64
 
     env:
+      # Inputs or defaults
       HDF5_VERSION: ${{ github.event.inputs.hdf5_version || '1.14.2' }}
       PNETCDF_VERSION: ${{ github.event.inputs.pnetcdf_version || '1.14.2' }}
-      # Choose Unidata tag: prefer workflow input, otherwise use the pushed tag name
       UNIDATA_TAG: ${{ github.event.inputs.unidata_tag || github.ref_name }}
+      # Cache keys include OS/arch and versions so caches are separated per platform and version
+      HDF5_CACHE_KEY: hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-${{ env.UNIDATA_TAG }}
+      PNETCDF_CACHE_KEY: pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-${{ env.UNIDATA_TAG }}
+      NETCDF_CACHE_KEY: netcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.UNIDATA_TAG }}
 
     steps:
       - name: Checkout this repository (workflow)
@@ -82,10 +86,10 @@ jobs:
           if [ "${{ matrix.os }}" = "linux" ]; then
             sudo apt-get update
             sudo apt-get install -y build-essential cmake ninja-build pkg-config wget tar libcurl4-openssl-dev zlib1g-dev libssl-dev
-            sudo apt-get install -y libopenmpi-dev openmpi-bin
+            sudo apt-get install -y libopenmpi-dev openmpi-bin ccache
           else
             brew update
-            brew install cmake ninja open-mpi wget pkg-config zlib curl
+            brew install cmake ninja open-mpi wget pkg-config zlib curl ccache
           fi
 
       - name: Install MS-MPI and tools on Windows
@@ -93,8 +97,24 @@ jobs:
         run: |
           choco install -y microsoft-mpi
           choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          choco install -y ccache
 
-      - name: Build and install HDF5 (parallel)
+      # -------------------------
+      # Cache HDF5 build/install
+      # -------------------------
+      - name: Restore HDF5 cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            unidata-netcdf-c/deps/build-hdf5/install
+            unidata-netcdf-c/deps/build-hdf5
+          key: ${{ env.HDF5_CACHE_KEY }}
+          restore-keys: |
+            hdf5-${{ matrix.os }}-${{ matrix.arch }}-${{ env.HDF5_VERSION }}-
+            hdf5-${{ matrix.os }}-${{ matrix.arch }}-
+
+      - name: Build and install HDF5 (parallel) if cache miss
+        if: steps.restore_hdf5_cache.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           set -e
@@ -113,7 +133,22 @@ jobs:
           fi
           echo "HDF5 installed to $(pwd)/install"
 
-      - name: Build and install PnetCDF (classic parallel)
+      # -------------------------
+      # Cache PnetCDF build/install
+      # -------------------------
+      - name: Restore PnetCDF cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            unidata-netcdf-c/deps/build-pnetcdf/install
+            unidata-netcdf-c/deps/build-pnetcdf
+          key: ${{ env.PNETCDF_CACHE_KEY }}
+          restore-keys: |
+            pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-${{ env.PNETCDF_VERSION }}-
+            pnetcdf-${{ matrix.os }}-${{ matrix.arch }}-
+
+      - name: Build and install PnetCDF (classic parallel) if cache miss
+        if: steps.restore_pnetcdf_cache.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/unidata-netcdf-c/deps
         run: |
           set -e
@@ -129,6 +164,20 @@ jobs:
             cmake --install . --prefix install
           fi
           echo "PnetCDF installed to $(pwd)/install"
+
+      # -------------------------
+      # Cache netCDF build/install
+      # -------------------------
+      - name: Restore netCDF build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            unidata-netcdf-c/build/install
+            unidata-netcdf-c/build
+            ~/.ccache
+          key: ${{ env.NETCDF_CACHE_KEY }}
+          restore-keys: |
+            netcdf-${{ matrix.os }}-${{ matrix.arch }}-
 
       - name: Configure netCDF-C with HDF5 and Parallel I/O
         working-directory: ${{ github.workspace }}/unidata-netcdf-c
@@ -167,6 +216,16 @@ jobs:
             cmake --build . --config Release -- -j$(nproc || sysctl -n hw.ncpu)
             cmake --install . --prefix install
           fi
+
+      - name: Save netCDF cache (explicit step to ensure cache key is created)
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: |
+            unidata-netcdf-c/build/install
+            unidata-netcdf-c/build
+            ~/.ccache
+          key: ${{ env.NETCDF_CACHE_KEY }}
 
       - name: Package artifacts
         run: |
