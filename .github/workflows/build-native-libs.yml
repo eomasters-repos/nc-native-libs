@@ -86,7 +86,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          choco install -y curl
+          choco install -y curl --no-progress
 
       - name: Build zlib (Windows)
         if: matrix.os == 'windows'
