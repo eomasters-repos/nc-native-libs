@@ -50,8 +50,7 @@ jobs:
          #   cmake_arch: ARM64
 
     env:
-
-      NETCDF_TAG: ${{ github.event.inputs.netcdftag || github.ref_name }}
+      NETCDF_TAG: ${{ github.event.inputs.netcdf_tag || github.ref_name }}
 
     steps:
       - name: Checkout workflow repo
