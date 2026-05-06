@@ -67,12 +67,6 @@ jobs:
         run: |
           mkdir -p build/hdf5 build/netcdf
 
-      - name: Install ZLIB (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
-        run: |
-          choco install -y zlib
-
       ###########################################################################
       # HDF5 SERIAL BUILD
       ###########################################################################
@@ -110,7 +104,8 @@ jobs:
           cmake ../src -A ${{ matrix.cmake_arch }} `
             -DBUILD_SHARED_LIBS=ON `
             -DHDF5_BUILD_TOOLS=ON `
-            -DHDF5_BUILD_TESTING=OFF \
+            -DHDF5_BUILD_TESTING=OFF `
+            -DHDF5_ENABLE_Z_LIB_SUPPORT=OFF `
             -DCMAKE_INSTALL_PREFIX="$PWD/install" `
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release --target install
