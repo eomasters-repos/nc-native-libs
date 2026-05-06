@@ -108,6 +108,7 @@ jobs:
           Set-Location zlib-build
       
           cmake ../zlib-src -A x64 `
+            "-DZLIB_BUILD_SHARED=ON" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
       
@@ -116,7 +117,7 @@ jobs:
       
           # Export include + lib paths
           echo "ZLIB_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$PWD/install/lib/zlib.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$PWD/install/lib/z.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # HDF5 SERIAL BUILD
