@@ -27,22 +27,22 @@ jobs:
             os: linux
             arch: x64
             cmake_arch: x86_64
-          - runner: ubuntu-24.04-arm
-            os: linux
-            arch: arm64
-            cmake_arch: aarch64
+#          - runner: ubuntu-24.04-arm
+#            os: linux
+#            arch: arm64
+#            cmake_arch: aarch64
 #          - runner: macos-13
 #            os: macos
 #            arch: x64
 #            cmake_arch: x86_64
-          - runner: macos-latest
-            os: macos
-            arch: arm64
-            cmake_arch: arm64
-          - runner: windows-latest
-            os: windows
-            arch: x64
-            cmake_arch: x64
+#          - runner: macos-latest
+#            os: macos
+#            arch: arm64
+#            cmake_arch: arm64
+#          - runner: windows-latest
+#            os: windows
+#            arch: x64
+#            cmake_arch: x64
          # Windows ARM64 disabled — HDF5 cannot be built
          # - runner: windows-latest
          #   os: windows
@@ -244,13 +244,14 @@ jobs:
             -DHDF5_BUILD_EXAMPLES=OFF \
             -DHDF5_BUILD_HL_TOOLS=OFF \
             -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-            -DHDF5_MODULE_MODE_ZLIB=ON \
-            -DZLIB_USE_EXTERNAL=OFF \
+            -DHDF5_ENABLE_ZLIB_SUPPORT=ON \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DCMAKE_PREFIX_PATH="$ZLIB_ROOT" \
             -DZLIB_ROOT=$ZLIB_ROOT \
             -DZLIB_DIR=$ZLIB_DIR \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
+            -DZLIB_LIBRARIES=$ZLIB_LIBRARY \
             -DZLIB_STATIC_LIBRARY=$ZLIB_STATIC_LIBRARY \
             -DZLIB_SHARED_LIBRARY=$ZLIB_SHARED_LIBRARY \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
@@ -277,12 +278,13 @@ jobs:
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
             "-DHDF5_ENABLE_Z_LIB_SUPPORT=ON" `
-            "-DHDF5_MODULE_MODE_ZLIB=ON" `
-            "-DZLIB_USE_EXTERNAL=OFF" `
+            "-DHDF5_ENABLE_ZLIB_SUPPORT=ON" `
+            "-DCMAKE_PREFIX_PATH=$env:ZLIB_ROOT" `
             "-DZLIB_ROOT=$env:ZLIB_ROOT" `
             "-DZLIB_DIR=$env:ZLIB_DIR" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
+            "-DZLIB_LIBRARIES=$env:ZLIB_LIBRARY" `
             "-DZLIB_STATIC_LIBRARY=$env:ZLIB_STATIC_LIBRARY" `
             "-DZLIB_SHARED_LIBRARY=$env:ZLIB_SHARED_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
