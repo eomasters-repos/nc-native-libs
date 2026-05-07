@@ -147,6 +147,7 @@ jobs:
             throw "Could not find installed zlib shared import library under $installPrefix\lib"
           }
           $zlibDllCandidates = @(
+            (Join-Path $installPrefix "bin\z.dll"),
             (Join-Path $installPrefix "bin\zlib1.dll"),
             (Join-Path $installPrefix "bin\zlib.dll")
           )
