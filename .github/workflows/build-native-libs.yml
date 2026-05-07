@@ -425,18 +425,29 @@ jobs:
           mkdir -p artifacts
           STAGE_DIR="$PWD/package-stage"
           rm -rf "$STAGE_DIR"
-          mkdir -p "$STAGE_DIR"
-          cp -a netcdf-c/build/install/. "$STAGE_DIR/"
           mkdir -p "$STAGE_DIR/lib"
 
+          copy_matches() {
+            local pattern="$1"
+            shopt -s nullglob
+            local files=($pattern)
+            shopt -u nullglob
+            if ((${#files[@]})); then
+              cp -a "${files[@]}" "$STAGE_DIR/lib/"
+            fi
+          }
+
+          copy_matches "netcdf-c/build/install/lib/libnetcdf.settings"
           if [[ "${{ matrix.os }}" == "linux" ]]; then
-            find curl-build/install/lib -maxdepth 1 -type f -name "libcurl.so*" -exec cp -a {} "$STAGE_DIR/lib/" \;
-            find build/hdf5/build/install/lib -maxdepth 1 -type f -name "libhdf5*.so*" -exec cp -a {} "$STAGE_DIR/lib/" \;
-            find zlib-build/install/lib -maxdepth 1 -type f -name "libz.so*" -exec cp -a {} "$STAGE_DIR/lib/" \;
+            copy_matches "netcdf-c/build/install/lib/libnetcdf.so*"
+            copy_matches "curl-build/install/lib/libcurl.so*"
+            copy_matches "build/hdf5/build/install/lib/libhdf5*.so*"
+            copy_matches "zlib-build/install/lib/libz.so*"
           else
-            find curl-build/install/lib -maxdepth 1 -type f -name "libcurl*.dylib" -exec cp -a {} "$STAGE_DIR/lib/" \;
-            find build/hdf5/build/install/lib -maxdepth 1 -type f -name "libhdf5*.dylib" -exec cp -a {} "$STAGE_DIR/lib/" \;
-            find zlib-build/install/lib -maxdepth 1 -type f -name "libz*.dylib" -exec cp -a {} "$STAGE_DIR/lib/" \;
+            copy_matches "netcdf-c/build/install/lib/libnetcdf*.dylib"
+            copy_matches "curl-build/install/lib/libcurl*.dylib"
+            copy_matches "build/hdf5/build/install/lib/libhdf5*.dylib"
+            copy_matches "zlib-build/install/lib/libz*.dylib"
           fi
 
           tar -czf artifacts/netcdf-${NETCDF_TAG}-${BUILD_PROFILE}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C "$STAGE_DIR" .
@@ -450,13 +461,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           $stageDir = Join-Path $PWD "package-stage"
           if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
-          New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stageDir "lib") | Out-Null
+          $stageLib = Join-Path $stageDir "lib"
 
-          Copy-Item -Path "netcdf-c\build\install\*" -Destination $stageDir -Recurse -Force
-          $stageBin = Join-Path $stageDir "bin"
-          New-Item -ItemType Directory -Force -Path $stageBin | Out-Null
+          $settingsFile = "netcdf-c\build\install\lib\libnetcdf.settings"
+          if (Test-Path -LiteralPath $settingsFile) {
+            Copy-Item -LiteralPath $settingsFile -Destination $stageLib -Force
+          }
 
           $runtimeDllDirs = @(
+            "netcdf-c\build\install\bin",
             "curl-build\install\bin",
             "build\hdf5\build\install\bin",
             "zlib-build\install\bin"
@@ -464,7 +478,7 @@ jobs:
           foreach ($dllDir in $runtimeDllDirs) {
             if (Test-Path -LiteralPath $dllDir) {
               Get-ChildItem -LiteralPath $dllDir -Filter *.dll -File | ForEach-Object {
-                Copy-Item -LiteralPath $_.FullName -Destination $stageBin -Force
+                Copy-Item -LiteralPath $_.FullName -Destination $stageLib -Force
               }
             }
           }
@@ -504,7 +518,7 @@ jobs:
         with:
           path: downloaded
 
-      - name: Delete existing release assets for tag
+      - name: Delete existing release for tag
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -524,21 +538,20 @@ jobs:
               throw err;
             }
 
-            core.info(`Deleting ${release.assets.length} existing assets from release ${release.id}.`);
-            for (const asset of release.assets) {
-              core.info(`Deleting asset: ${asset.name} (${asset.id})`);
-              await github.rest.repos.deleteReleaseAsset({
-                owner,
-                repo,
-                asset_id: asset.id
-              });
-            }
+            core.info(`Deleting existing release ${release.id} (${release.tag_name}) with ${release.assets.length} assets.`);
+            await github.rest.repos.deleteRelease({
+              owner,
+              repo,
+              release_id: release.id
+            });
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NETCDF_TAG }}
           overwrite_files: true
-          files: downloaded/**/*
+          files: |
+            downloaded/**/*.tar.gz
+            downloaded/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
