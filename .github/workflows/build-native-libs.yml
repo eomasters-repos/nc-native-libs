@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       netcdf_tag:
-        description: "Tag (version) of Unidata/netcdf-c to build (e.g. v4.10.0)"
+        description: "Tag/version of Unidata/netcdf-c build (e.g., v4.10.0)"
         required: true
 
 env:
