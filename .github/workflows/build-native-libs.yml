@@ -423,7 +423,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          STAGE_DIR="$PWD/artifacts/stage"
+          STAGE_DIR="$PWD/package-stage"
           rm -rf "$STAGE_DIR"
           mkdir -p "$STAGE_DIR"
           cp -a netcdf-c/build/install/. "$STAGE_DIR/"
@@ -440,6 +440,7 @@ jobs:
           fi
 
           tar -czf artifacts/netcdf-${NETCDF_TAG}-${BUILD_PROFILE}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C "$STAGE_DIR" .
+          rm -rf "$STAGE_DIR"
 
       - name: Package artifacts (Windows)
         if: matrix.os == 'windows'
@@ -447,7 +448,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          $stageDir = Join-Path $PWD "artifacts\stage"
+          $stageDir = Join-Path $PWD "package-stage"
           if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
 
@@ -470,6 +471,7 @@ jobs:
 
           $artifactPath = "artifacts/netcdf-$env:NETCDF_TAG-$env:BUILD_PROFILE-${{ matrix.os }}-${{ matrix.arch }}.zip"
           Compress-Archive -Path "$stageDir/*" -DestinationPath $artifactPath
+          Remove-Item -LiteralPath $stageDir -Recurse -Force
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
