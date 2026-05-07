@@ -31,10 +31,10 @@ jobs:
             os: linux
             arch: arm64
             cmake_arch: aarch64
-          - runner: macos-13
-            os: macos
-            arch: x64
-            cmake_arch: x86_64
+#          - runner: macos-13
+#            os: macos
+#            arch: x64
+#            cmake_arch: x86_64
           - runner: macos-latest
             os: macos
             arch: arm64
@@ -172,7 +172,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DBUILD_SHARED_LIBS=OFF \
             -DCURL_USE_LIBPSL=OFF \
-            -DCURL_ZLIB=ON \
+            -DCURL_ZLIB=OFF \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
@@ -208,7 +208,7 @@ jobs:
             "-DCURL_USE_SCHANNEL=ON" `
             "-DCURL_USE_OPENSSL=OFF" `
             "-DCURL_USE_LIBPSL=OFF" `
-            "-DCURL_ZLIB=ON" `
+            "-DCURL_ZLIB=OFF" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
