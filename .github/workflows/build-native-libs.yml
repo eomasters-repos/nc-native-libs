@@ -21,31 +21,32 @@ jobs:
     strategy:
       matrix:
         include:
-#          - runner: ubuntu-latest
-#            os: linux
-#            arch: x64
-#            cmake_arch: x86_64
-#          - runner: ubuntu-24.04-arm
-#            os: linux
-#            arch: arm64
-#            cmake_arch: aarch64
-          - runner: macos‑15‑intel
-            os: macos
+          - runner: ubuntu-latest
+            os: linux
             arch: x64
             cmake_arch: x86_64
-#          - runner: macos-latest
+          - runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+            cmake_arch: aarch64
+          - runner: macos-latest
+            os: macos
+            arch: arm64
+            cmake_arch: arm64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            cmake_arch: x64
+#          Outdated and runners take too long to start (not even sure if it will build)
+#          - runner: macos‑15‑intel
 #            os: macos
-#            arch: arm64
-#            cmake_arch: arm64
+#            arch: x64
+#            cmake_arch: x86_64
+#          Windows ARM64 disabled — HDF5 cannot be built
 #          - runner: windows-latest
 #            os: windows
-#            arch: x64
-#            cmake_arch: x64
-         # Windows ARM64 disabled — HDF5 cannot be built
-         # - runner: windows-latest
-         #   os: windows
-         #   arch: arm64
-         #   cmake_arch: ARM64
+#            arch: arm64
+#            cmake_arch: ARM64
 
     steps:
       - name: Checkout workflow repo
