@@ -348,6 +348,7 @@ jobs:
             "-DNETCDF_ENABLE_NCZARR=ON" `
             "-DNETCDF_ENABLE_BYTERANGE=ON" `
             "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF" `
+            "-DCMAKE_C_FLAGS=/I$env:CURL_INCLUDE" `
             "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;$hdf5Root" `
             "-DCURL_ROOT=$env:CURL_ROOT" `
             "-DCURL_DIR=$env:CURL_DIR" `
@@ -359,7 +360,9 @@ jobs:
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release -- /m /verbosity:normal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install . --config Release --prefix "$PWD/install"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 
       ###########################################################################
