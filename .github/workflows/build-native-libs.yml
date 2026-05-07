@@ -61,6 +61,12 @@ jobs:
         run: |
           git clone --depth 1 --branch "$NETCDF_TAG" https://github.com/Unidata/netcdf-c.git netcdf-c
 
+      - name: Patch netCDF-C HDF5 symbol checks for CMake try_compile
+        shell: bash
+        run: |
+          set -e
+          sed -i 's|set(CMAKE_REQUIRED_LIBRARIES HDF5::HDF5)|set(CMAKE_REQUIRED_LIBRARIES ${HDF5_LIBRARIES})|' netcdf-c/cmake/dependencies.cmake
+
       - name: Prepare build folders
         shell: bash
         run: |
