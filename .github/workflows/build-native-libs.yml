@@ -1,20 +1,16 @@
-name: Build netCDF-C (HDF5 serial)
+name: Build NetCDF-C (HDF5 serial)
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       netcdf_tag:
-        description: "Tag of Unidata/netcdf-c to build"
-        required: false
-        default: ""
+        description: "Tag (version) of Unidata/netcdf-c to build (e.g. v4.10.0)"
+        required: true
 
 env:
   ZLIB_VERSION: "1.3.2"
   CURL_VERSION: "8.20.0"
   HDF5_VERSION: "1.14.2"
-  NETCDF_TAG: ${{ github.event.inputs.netcdf_tag || github.ref_name }}
+  NETCDF_TAG: ${{ github.event.inputs.netcdf_tag }}
 
 permissions:
   contents: write
