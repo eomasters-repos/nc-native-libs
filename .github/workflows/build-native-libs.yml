@@ -422,6 +422,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf artifacts package-stage
           mkdir -p artifacts
           STAGE_DIR="$PWD/package-stage"
           rm -rf "$STAGE_DIR"
@@ -458,6 +459,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          if (Test-Path -LiteralPath "artifacts") { Remove-Item -LiteralPath "artifacts" -Recurse -Force }
+          if (Test-Path -LiteralPath "package-stage") { Remove-Item -LiteralPath "package-stage" -Recurse -Force }
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           $stageDir = Join-Path $PWD "package-stage"
           if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
@@ -502,14 +505,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Delete existing release/tag (hard reset)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$NETCDF_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$NETCDF_TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          else
+            echo "No existing release for $NETCDF_TAG"
+            git push origin ":refs/tags/$NETCDF_TAG" 2>/dev/null || true
+          fi
+          git tag -d "$NETCDF_TAG" 2>/dev/null || true
+
       - name: Recreate release tag
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -d "$NETCDF_TAG" 2>/dev/null || true
-          git push origin ":refs/tags/$NETCDF_TAG" 2>/dev/null || true
           git tag "$NETCDF_TAG" "$GITHUB_SHA" -f
           git push origin "refs/tags/$NETCDF_TAG" --force
 
@@ -518,32 +533,12 @@ jobs:
         with:
           path: downloaded
 
-      - name: Delete existing release for tag
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const tag = process.env.NETCDF_TAG;
-            const { owner, repo } = context.repo;
-
-            let release;
-            try {
-              const resp = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-              release = resp.data;
-            } catch (err) {
-              if (err.status === 404) {
-                core.info(`No release exists yet for tag ${tag}; nothing to delete.`);
-                return;
-              }
-              throw err;
-            }
-
-            core.info(`Deleting existing release ${release.id} (${release.tag_name}) with ${release.assets.length} assets.`);
-            await github.rest.repos.deleteRelease({
-              owner,
-              repo,
-              release_id: release.id
-            });
+      - name: Debug downloaded files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Downloaded files:"
+          find downloaded -type f | sort
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -555,3 +550,12 @@ jobs:
             downloaded/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify published assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Assets for $NETCDF_TAG:"
+          gh release view "$NETCDF_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
