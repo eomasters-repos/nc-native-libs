@@ -33,10 +33,10 @@ jobs:
 #            os: macos
 #            arch: x64
 #            cmake_arch: x86_64
-#          - runner: macos-latest
-#            os: macos
-#            arch: arm64
-#            cmake_arch: arm64
+          - runner: macos-latest
+            os: macos
+            arch: arm64
+            cmake_arch: arm64
 #          - runner: windows-latest
 #            os: windows
 #            arch: x64
