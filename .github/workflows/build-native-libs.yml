@@ -91,6 +91,8 @@ jobs:
       
           cmake --build . --target install -- -s
       
+          echo "ZLIB_ROOT=$PWD/install" >> $GITHUB_ENV
+          echo "ZLIB_DIR=$PWD/install/lib/cmake/zlib" >> $GITHUB_ENV
           echo "ZLIB_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
       
           if [[ "$RUNNER_OS" == "Linux" ]]; then
@@ -122,8 +124,20 @@ jobs:
           cmake --build . --config Release -- /verbosity:quiet /nologo
           cmake --install . --config Release --prefix $installPrefix
 
+          $zlibLibCandidates = @(
+            "$installPrefix\lib\zlibstatic.lib",
+            "$installPrefix\lib\zlib.lib"
+          )
+          $zlibLib = $zlibLibCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $zlibLib) {
+            Get-ChildItem -LiteralPath "$installPrefix\lib" -ErrorAction SilentlyContinue
+            throw "Could not find installed zlib static library under $installPrefix\lib"
+          }
+
+          echo "ZLIB_ROOT=$installPrefix" >> $env:GITHUB_ENV
+          echo "ZLIB_DIR=$installPrefix\lib\cmake\zlib" >> $env:GITHUB_ENV
           echo "ZLIB_INCLUDE=$installPrefix\include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$installPrefix\lib\zlibstatic.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$zlibLib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
@@ -216,11 +230,13 @@ jobs:
             -DHDF5_BUILD_EXAMPLES=OFF \
             -DHDF5_BUILD_HL_TOOLS=OFF \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DZLIB_ROOT=$ZLIB_ROOT \
+            -DZLIB_DIR=$ZLIB_DIR \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
             -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release  -- --quiet
-          cmake --install . --prefix install  --quiet
+          cmake --build . --config Release
+          cmake --install . --prefix install
 
       - name: Build HDF5 (Windows)
         if: matrix.os == 'windows'
@@ -240,6 +256,8 @@ jobs:
             "-DHDF5_BUILD_TESTING=OFF" `
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
+            "-DZLIB_ROOT=$env:ZLIB_ROOT" `
+            "-DZLIB_DIR=$env:ZLIB_DIR" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
@@ -270,8 +288,8 @@ jobs:
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DCMAKE_BUILD_TYPE=Release          
-          cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc) --quiet
-          cmake --install . --prefix install --quiet
+          cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc)
+          cmake --install . --prefix install
 
       - name: Build netCDF-C (Windows)
         if: matrix.os == 'windows'
