@@ -301,8 +301,9 @@ jobs:
             -DNETCDF_ENABLE_HDF5=ON \
             -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
             -DNETCDF_ENABLE_DAP=ON \
-            -DENABLE_NCZARR=ON \
-            -DENABLE_BYTERANGE=ON \
+            -DNETCDF_ENABLE_NCZARR=ON \
+            -DNETCDF_ENABLE_BYTERANGE=ON \
+            -DCURL_NO_CURL_CMAKE=ON \
             -DCURL_ROOT="$CURL_ROOT" \
             -DCURL_DIR="$CURL_DIR" \
             -DCURL_INCLUDE_DIR=$CURL_INCLUDE \
@@ -329,9 +330,10 @@ jobs:
             "-DNETCDF_ENABLE_HDF5=ON" `
             "-DENABLE_TESTS=OFF" `
             "-DHDF5_ROOT=${{ github.workspace }}/build/hdf5/build/install" `
-            "-DENABLE_DAP=ON" `
-            "-DENABLE_NCZARR=ON" `
-            "-DENABLE_BYTERANGE=ON" `
+            "-DNETCDF_ENABLE_DAP=ON" `
+            "-DNETCDF_ENABLE_NCZARR=ON" `
+            "-DNETCDF_ENABLE_BYTERANGE=ON" `
+            "-DCURL_NO_CURL_CMAKE=ON" `
             "-DCURL_ROOT=$env:CURL_ROOT" `
             "-DCURL_DIR=$env:CURL_DIR" `
             "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
