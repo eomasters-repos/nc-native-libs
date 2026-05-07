@@ -115,6 +115,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
           Set-Location zlib-build
           $installPrefix = "$PWD\install"
+          $installPrefixCMake = $installPrefix -replace '\\','/'
 
           cmake ../zlib-src -A x64 `
             "-DBUILD_SHARED_LIBS=OFF" `
@@ -135,13 +136,14 @@ jobs:
             Get-ChildItem -LiteralPath "$installPrefix\lib" -ErrorAction SilentlyContinue
             throw "Could not find installed zlib static library under $installPrefix\lib"
           }
+          $zlibLibCMake = $zlibLib -replace '\\','/'
 
-          echo "ZLIB_ROOT=$installPrefix" >> $env:GITHUB_ENV
-          echo "ZLIB_DIR=$installPrefix\lib\cmake\zlib" >> $env:GITHUB_ENV
-          echo "ZLIB_INCLUDE=$installPrefix\include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$zlibLib" >> $env:GITHUB_ENV
-          echo "ZLIB_STATIC_LIBRARY=$installPrefix\lib\zs.lib" >> $env:GITHUB_ENV
-          echo "ZLIB_SHARED_LIBRARY=$installPrefix\lib\z.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_ROOT=$installPrefixCMake" >> $env:GITHUB_ENV
+          echo "ZLIB_DIR=$installPrefixCMake/lib/cmake/zlib" >> $env:GITHUB_ENV
+          echo "ZLIB_INCLUDE=$installPrefixCMake/include" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY=$zlibLibCMake" >> $env:GITHUB_ENV
+          echo "ZLIB_STATIC_LIBRARY=$installPrefixCMake/lib/zs.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_SHARED_LIBRARY=$installPrefixCMake/lib/z.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
@@ -198,6 +200,7 @@ jobs:
       
           New-Item -ItemType Directory -Force -Path curl-build | Out-Null
           Set-Location curl-build
+          $curlInstallPrefix = ("$PWD\install" -replace '\\','/')
       
           cmake ../curl-src -A x64 `
             "-DBUILD_SHARED_LIBS=OFF" `
@@ -207,16 +210,16 @@ jobs:
             "-DCURL_ZLIB=OFF" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
-            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
+            "-DCMAKE_INSTALL_PREFIX=$curlInstallPrefix" `
             "-DCMAKE_BUILD_TYPE=Release" `
             "--log-level=WARNING"
       
           cmake --build . --config Release --target install -- /verbosity:quiet /nologo
 
-          echo "CURL_ROOT=$PWD/install" >> $env:GITHUB_ENV
-          echo "CURL_DIR=$PWD/install/lib/cmake/CURL" >> $env:GITHUB_ENV
-          echo "CURL_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
-          echo "CURL_LIBRARY=$PWD/install/lib/libcurl.lib" >> $env:GITHUB_ENV
+          echo "CURL_ROOT=$curlInstallPrefix" >> $env:GITHUB_ENV
+          echo "CURL_DIR=$curlInstallPrefix/lib/cmake/CURL" >> $env:GITHUB_ENV
+          echo "CURL_INCLUDE=$curlInstallPrefix/include" >> $env:GITHUB_ENV
+          echo "CURL_LIBRARY=$curlInstallPrefix/lib/libcurl.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # HDF5 SERIAL BUILD
@@ -327,21 +330,25 @@ jobs:
         working-directory: netcdf-c
         run: |
           $ErrorActionPreference = "Stop"
-          $env:PATH = "${{ github.workspace }}\build\hdf5\build\install\bin;$env:PATH"
-          $env:INCLUDE = "$env:CURL_INCLUDE;$env:INCLUDE"
-          $env:LIB = "$env:CURL_ROOT\lib;$env:LIB"
+          $workspaceCMake = $env:GITHUB_WORKSPACE -replace '\\','/'
+          $hdf5Root = "$workspaceCMake/build/hdf5/build/install"
+          $curlRootNative = $env:CURL_ROOT -replace '/','\'
+          $curlIncludeNative = $env:CURL_INCLUDE -replace '/','\'
+          $env:PATH = "$($hdf5Root -replace '/','\')\bin;$env:PATH"
+          $env:INCLUDE = "$curlIncludeNative;$env:INCLUDE"
+          $env:LIB = "$curlRootNative\lib;$env:LIB"
           New-Item -ItemType Directory -Force -Path build | Out-Null
           Set-Location build
           cmake .. -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
             "-DBUILD_SHARED_LIBS=ON" `
             "-DNETCDF_ENABLE_HDF5=ON" `
-            "-DENABLE_TESTS=OFF" `
-            "-DHDF5_ROOT=${{ github.workspace }}/build/hdf5/build/install" `
+            "-DNETCDF_ENABLE_TESTS=OFF" `
+            "-DHDF5_ROOT=$hdf5Root" `
             "-DNETCDF_ENABLE_DAP=ON" `
             "-DNETCDF_ENABLE_NCZARR=ON" `
             "-DNETCDF_ENABLE_BYTERANGE=ON" `
             "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF" `
-            "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" `
+            "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;$hdf5Root" `
             "-DCURL_ROOT=$env:CURL_ROOT" `
             "-DCURL_DIR=$env:CURL_DIR" `
             "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
