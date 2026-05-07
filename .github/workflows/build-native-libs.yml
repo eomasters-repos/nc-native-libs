@@ -61,12 +61,6 @@ jobs:
         run: |
           git clone --depth 1 --branch "$NETCDF_TAG" https://github.com/Unidata/netcdf-c.git netcdf-c
 
-      - name: Patch netCDF-C HDF5 symbol checks for CMake try_compile
-        shell: bash
-        run: |
-          set -e
-          sed -i 's|set(CMAKE_REQUIRED_LIBRARIES HDF5::HDF5)|set(CMAKE_REQUIRED_LIBRARIES ${HDF5_LIBRARIES})|' netcdf-c/cmake/dependencies.cmake
-
       - name: Prepare build folders
         shell: bash
         run: |
@@ -305,6 +299,7 @@ jobs:
         working-directory: netcdf-c
         run: |
           set -e
+          export PATH="${{ github.workspace }}/build/hdf5/build/install/bin:$PATH"
           export CPATH="$CURL_INCLUDE${CPATH:+:$CPATH}"
           export LIBRARY_PATH="$CURL_ROOT/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
           mkdir -p build && cd build
@@ -315,7 +310,7 @@ jobs:
             -DNETCDF_ENABLE_DAP=ON \
             -DNETCDF_ENABLE_NCZARR=ON \
             -DNETCDF_ENABLE_BYTERANGE=ON \
-            -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON \
+            -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF \
             -DCMAKE_PREFIX_PATH="$CURL_ROOT;$ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" \
             -DCURL_ROOT="$CURL_ROOT" \
             -DCURL_DIR="$CURL_DIR" \
@@ -336,6 +331,7 @@ jobs:
         working-directory: netcdf-c
         run: |
           $ErrorActionPreference = "Stop"
+          $env:PATH = "${{ github.workspace }}\build\hdf5\build\install\bin;$env:PATH"
           $env:INCLUDE = "$env:CURL_INCLUDE;$env:INCLUDE"
           $env:LIB = "$env:CURL_ROOT\lib;$env:LIB"
           New-Item -ItemType Directory -Force -Path build | Out-Null
@@ -348,7 +344,7 @@ jobs:
             "-DNETCDF_ENABLE_DAP=ON" `
             "-DNETCDF_ENABLE_NCZARR=ON" `
             "-DNETCDF_ENABLE_BYTERANGE=ON" `
-            "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON" `
+            "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF" `
             "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" `
             "-DCURL_ROOT=$env:CURL_ROOT" `
             "-DCURL_DIR=$env:CURL_DIR" `
