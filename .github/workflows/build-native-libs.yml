@@ -307,7 +307,7 @@ jobs:
             -DNETCDF_ENABLE_DAP=ON \
             -DNETCDF_ENABLE_NCZARR=ON \
             -DNETCDF_ENABLE_BYTERANGE=ON \
-            -DCURL_NO_CURL_CMAKE=ON \
+            -DCMAKE_PREFIX_PATH="$CURL_ROOT;$ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" \
             -DCURL_ROOT="$CURL_ROOT" \
             -DCURL_DIR="$CURL_DIR" \
             -DCURL_INCLUDE_DIR=$CURL_INCLUDE \
@@ -337,7 +337,7 @@ jobs:
             "-DNETCDF_ENABLE_DAP=ON" `
             "-DNETCDF_ENABLE_NCZARR=ON" `
             "-DNETCDF_ENABLE_BYTERANGE=ON" `
-            "-DCURL_NO_CURL_CMAKE=ON" `
+            "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" `
             "-DCURL_ROOT=$env:CURL_ROOT" `
             "-DCURL_DIR=$env:CURL_DIR" `
             "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
