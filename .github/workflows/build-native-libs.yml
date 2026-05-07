@@ -244,6 +244,8 @@ jobs:
             -DHDF5_BUILD_EXAMPLES=OFF \
             -DHDF5_BUILD_HL_TOOLS=OFF \
             -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
+            -DHDF5_MODULE_MODE_ZLIB=ON \
+            -DZLIB_USE_EXTERNAL=OFF \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DZLIB_ROOT=$ZLIB_ROOT \
             -DZLIB_DIR=$ZLIB_DIR \
@@ -275,6 +277,8 @@ jobs:
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
             "-DHDF5_ENABLE_Z_LIB_SUPPORT=ON" `
+            "-DHDF5_MODULE_MODE_ZLIB=ON" `
+            "-DZLIB_USE_EXTERNAL=OFF" `
             "-DZLIB_ROOT=$env:ZLIB_ROOT" `
             "-DZLIB_DIR=$env:ZLIB_DIR" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
