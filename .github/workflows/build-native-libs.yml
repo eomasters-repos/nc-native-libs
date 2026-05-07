@@ -226,11 +226,12 @@ jobs:
           mkdir build && cd build
           cmake ../src -G Ninja "--log-level=WARNING"\
             -DBUILD_SHARED_LIBS=ON \
-            -DHDF5_BUILD_TOOLS=ON \
+            -DHDF5_BUILD_TOOLS=OFF \
             -DBUILD_TESTING=OFF \
             -DHDF5_BUILD_TESTING=OFF \
             -DHDF5_BUILD_EXAMPLES=OFF \
             -DHDF5_BUILD_HL_TOOLS=OFF \
+            -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DZLIB_ROOT=$ZLIB_ROOT \
             -DZLIB_DIR=$ZLIB_DIR \
@@ -253,11 +254,12 @@ jobs:
           Set-Location build
           cmake ../src -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
             "-DBUILD_SHARED_LIBS=ON" `
-            "-DHDF5_BUILD_TOOLS=ON" `
+            "-DHDF5_BUILD_TOOLS=OFF" `
             "-DBUILD_TESTING=OFF" `
             "-DHDF5_BUILD_TESTING=OFF" `
             "-DHDF5_BUILD_EXAMPLES=OFF" `
             "-DHDF5_BUILD_HL_TOOLS=OFF" `
+            "-DHDF5_ENABLE_Z_LIB_SUPPORT=ON" `
             "-DZLIB_ROOT=$env:ZLIB_ROOT" `
             "-DZLIB_DIR=$env:ZLIB_DIR" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
