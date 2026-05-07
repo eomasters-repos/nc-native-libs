@@ -125,6 +125,8 @@ jobs:
           cmake --install . --config Release --prefix $installPrefix
 
           $zlibLibCandidates = @(
+            "$installPrefix\lib\zs.lib",
+            "$installPrefix\lib\z.lib",
             "$installPrefix\lib\zlibstatic.lib",
             "$installPrefix\lib\zlib.lib"
           )
