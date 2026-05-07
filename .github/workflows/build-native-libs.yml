@@ -125,8 +125,10 @@ jobs:
           cmake --install . --config Release --prefix $installPrefix
 
           $zlibLibCandidates = @(
+            "$installPrefix\lib\zs.lib",
+            "$installPrefix\lib\z.lib"
             "$installPrefix\lib\zlibstatic.lib",
-            "$installPrefix\lib\zlib.lib"
+            "$installPrefix\lib\zlib.lib",
           )
           $zlibLib = $zlibLibCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
           if (-not $zlibLib) {
