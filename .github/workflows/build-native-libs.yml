@@ -29,7 +29,7 @@ jobs:
 #            os: linux
 #            arch: arm64
 #            cmake_arch: aarch64
-          - runner: macos-13
+          - runner: macos‑15‑intel
             os: macos
             arch: x64
             cmake_arch: x86_64
