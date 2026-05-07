@@ -170,6 +170,7 @@ jobs:
           cmake ../curl-src \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DBUILD_SHARED_LIBS=OFF \
             -DCURL_USE_LIBPSL=OFF \
             -DCURL_ZLIB=OFF \
