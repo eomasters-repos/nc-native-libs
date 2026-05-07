@@ -97,8 +97,12 @@ jobs:
       
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             echo "ZLIB_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
+            echo "ZLIB_STATIC_LIBRARY=$PWD/install/lib/libz.a" >> $GITHUB_ENV
+            echo "ZLIB_SHARED_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
           else
             echo "ZLIB_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
+            echo "ZLIB_STATIC_LIBRARY=$PWD/install/lib/libz.a" >> $GITHUB_ENV
+            echo "ZLIB_SHARED_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
           fi    
 
       - name: Build zlib (Windows)
@@ -140,6 +144,8 @@ jobs:
           echo "ZLIB_DIR=$installPrefix\lib\cmake\zlib" >> $env:GITHUB_ENV
           echo "ZLIB_INCLUDE=$installPrefix\include" >> $env:GITHUB_ENV
           echo "ZLIB_LIBRARY=$zlibLib" >> $env:GITHUB_ENV
+          echo "ZLIB_STATIC_LIBRARY=$installPrefix\lib\zs.lib" >> $env:GITHUB_ENV
+          echo "ZLIB_SHARED_LIBRARY=$installPrefix\lib\z.lib" >> $env:GITHUB_ENV
 
       ###########################################################################
       # CURL BUILD
@@ -173,6 +179,8 @@ jobs:
       
           cmake --build . --target install -- -s
       
+          echo "CURL_ROOT=$PWD/install" >> $GITHUB_ENV
+          echo "CURL_DIR=$PWD/install/lib/cmake/CURL" >> $GITHUB_ENV
           echo "CURL_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
           echo "CURL_LIBRARY=$PWD/install/lib/libcurl.a" >> $GITHUB_ENV
 
@@ -207,6 +215,8 @@ jobs:
       
           cmake --build . --config Release --target install -- /verbosity:quiet /nologo
 
+          echo "CURL_ROOT=$PWD/install" >> $env:GITHUB_ENV
+          echo "CURL_DIR=$PWD/install/lib/cmake/CURL" >> $env:GITHUB_ENV
           echo "CURL_INCLUDE=$PWD/install/include" >> $env:GITHUB_ENV
           echo "CURL_LIBRARY=$PWD/install/lib/libcurl.lib" >> $env:GITHUB_ENV
 
@@ -237,6 +247,8 @@ jobs:
             -DZLIB_DIR=$ZLIB_DIR \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
+            -DZLIB_STATIC_LIBRARY=$ZLIB_STATIC_LIBRARY \
+            -DZLIB_SHARED_LIBRARY=$ZLIB_SHARED_LIBRARY \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
           cmake --install . --prefix install
@@ -264,6 +276,8 @@ jobs:
             "-DZLIB_DIR=$env:ZLIB_DIR" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
+            "-DZLIB_STATIC_LIBRARY=$env:ZLIB_STATIC_LIBRARY" `
+            "-DZLIB_SHARED_LIBRARY=$env:ZLIB_SHARED_LIBRARY" `
             "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
             "-DCMAKE_BUILD_TYPE=Release"
           cmake --build . --config Release --target install -- /verbosity:minimal
@@ -286,7 +300,10 @@ jobs:
             -DNETCDF_ENABLE_DAP=ON \
             -DENABLE_NCZARR=ON \
             -DENABLE_BYTERANGE=ON \
+            -DCURL_ROOT="$CURL_ROOT" \
+            -DCURL_DIR="$CURL_DIR" \
             -DCURL_INCLUDE_DIR=$CURL_INCLUDE \
+            -DCURL_INCLUDE_DIRS=$CURL_INCLUDE \
             -DCURL_LIBRARY=$CURL_LIBRARY \
             -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
             -DZLIB_LIBRARY=$ZLIB_LIBRARY \
@@ -311,7 +328,10 @@ jobs:
             "-DENABLE_DAP=ON" `
             "-DENABLE_NCZARR=ON" `
             "-DENABLE_BYTERANGE=ON" `
+            "-DCURL_ROOT=$env:CURL_ROOT" `
+            "-DCURL_DIR=$env:CURL_DIR" `
             "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
+            "-DCURL_INCLUDE_DIRS=$env:CURL_INCLUDE" `
             "-DCURL_LIBRARY=$env:CURL_LIBRARY" `
             "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
             "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
