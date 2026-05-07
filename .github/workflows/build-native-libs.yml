@@ -382,6 +382,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout workflow repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recreate release tag
+        shell: bash
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -d "$NETCDF_TAG" 2>/dev/null || true
+          git push origin ":refs/tags/$NETCDF_TAG" 2>/dev/null || true
+          git tag "$NETCDF_TAG" "$GITHUB_SHA" -f
+          git push origin "refs/tags/$NETCDF_TAG" --force
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -391,7 +407,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NETCDF_TAG }}
-          overwrite_files: 'true'
+          overwrite_files: true
           files: downloaded/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
