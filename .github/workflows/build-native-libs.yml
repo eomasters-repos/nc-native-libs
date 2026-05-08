@@ -107,65 +107,16 @@ jobs:
       - name: Build HDF5 (Unix)
         if: matrix.os != 'windows'
         shell: bash
-        working-directory: build/hdf5
-        run: |
-          set -e
-          wget -q -O hdf5.tar.gz \
-            https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_14_${HDF5_VERSION##*.}.tar.gz
-          mkdir src && tar xf hdf5.tar.gz --strip-components=1 -C src
-          mkdir build && cd build
-          cmake ../src -G Ninja "--log-level=WARNING"\
-            -DBUILD_SHARED_LIBS=ON \
-            -DHDF5_BUILD_TOOLS=OFF \
-            -DBUILD_TESTING=OFF \
-            -DHDF5_BUILD_TESTING=OFF \
-            -DHDF5_BUILD_EXAMPLES=OFF \
-            -DHDF5_BUILD_HL_TOOLS=OFF \
-            -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DCMAKE_PREFIX_PATH="$ZLIB_ROOT" \
-            -DZLIB_ROOT=$ZLIB_ROOT \
-            -DZLIB_DIR=$ZLIB_DIR \
-            -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
-            -DZLIB_LIBRARY=$ZLIB_LIBRARY \
-            -DZLIB_LIBRARIES=$ZLIB_LIBRARY \
-            -DZLIB_STATIC_LIBRARY=$ZLIB_STATIC_LIBRARY \
-            -DZLIB_SHARED_LIBRARY=$ZLIB_SHARED_LIBRARY \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
-          cmake --install . --prefix install
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: bash .github/scripts/build-hdf5-unix.sh
 
       - name: Build HDF5 (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
-        working-directory: build/hdf5
-        run: |
-          $ErrorActionPreference = "Stop"
-          Invoke-WebRequest -Uri "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_14_$($env:HDF5_VERSION.Split('.')[2]).tar.gz" -OutFile hdf5.tar.gz
-          New-Item -ItemType Directory -Force -Path src | Out-Null
-          tar -xf hdf5.tar.gz -C src --strip-components=1
-          New-Item -ItemType Directory -Force -Path build | Out-Null
-          Set-Location build
-          cmake ../src -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
-            "-DBUILD_SHARED_LIBS=ON" `
-            "-DHDF5_BUILD_TOOLS=OFF" `
-            "-DBUILD_TESTING=OFF" `
-            "-DHDF5_BUILD_TESTING=OFF" `
-            "-DHDF5_BUILD_EXAMPLES=OFF" `
-            "-DHDF5_BUILD_HL_TOOLS=OFF" `
-            "-DHDF5_ENABLE_Z_LIB_SUPPORT=ON" `
-            "-DCMAKE_PREFIX_PATH=$env:ZLIB_ROOT" `
-            "-DZLIB_ROOT=$env:ZLIB_ROOT" `
-            "-DZLIB_DIR=$env:ZLIB_DIR" `
-            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
-            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
-            "-DZLIB_LIBRARIES=$env:ZLIB_LIBRARY" `
-            "-DZLIB_STATIC_LIBRARY=$env:ZLIB_STATIC_LIBRARY" `
-            "-DZLIB_SHARED_LIBRARY=$env:ZLIB_SHARED_LIBRARY" `
-            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
-            "-DCMAKE_BUILD_TYPE=Release"
-          cmake --build . --config Release --target install -- /verbosity:minimal
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: .\.github\scripts\build-hdf5-windows.ps1
 
       ###########################################################################
       # NETCDF-C SERIAL BUILD
@@ -174,74 +125,16 @@ jobs:
       - name: Build netCDF-C (Unix)
         if: matrix.os != 'windows'
         shell: bash
-        working-directory: netcdf-c
-        run: |
-          set -e
-          export PATH="${{ github.workspace }}/build/hdf5/build/install/bin:$PATH"
-          export CPATH="$CURL_INCLUDE${CPATH:+:$CPATH}"
-          export LIBRARY_PATH="$CURL_ROOT/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
-          mkdir -p build && cd build
-          cmake .. -G Ninja \
-            -DBUILD_SHARED_LIBS=ON \
-            -DNETCDF_ENABLE_HDF5=ON \
-            -DHDF5_ROOT="${{ github.workspace }}/build/hdf5/build/install" \
-            -DNETCDF_ENABLE_DAP=ON \
-            -DNETCDF_ENABLE_NCZARR=ON \
-            -DNETCDF_ENABLE_BYTERANGE=ON \
-            -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF \
-            -DCMAKE_PREFIX_PATH="$CURL_ROOT;$ZLIB_ROOT;${{ github.workspace }}/build/hdf5/build/install" \
-            -DCURL_ROOT="$CURL_ROOT" \
-            -DCURL_DIR="$CURL_DIR" \
-            -DCURL_INCLUDE_DIR=$CURL_INCLUDE \
-            -DCURL_INCLUDE_DIRS=$CURL_INCLUDE \
-            -DCURL_LIBRARY=$CURL_LIBRARY \
-            -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
-            -DZLIB_LIBRARY=$ZLIB_LIBRARY \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DCMAKE_BUILD_TYPE=Release          
-          cmake --build . --config Release -- -j$(sysctl -n hw.ncpu 2>/dev/null || nproc)
-          cmake --install . --prefix install
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: bash .github/scripts/build-netcdf-unix.sh
 
       - name: Build netCDF-C (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
-        working-directory: netcdf-c
-        run: |
-          $ErrorActionPreference = "Stop"
-          $workspaceCMake = $env:GITHUB_WORKSPACE -replace '\\','/'
-          $hdf5Root = "$workspaceCMake/build/hdf5/build/install"
-          $curlRootNative = $env:CURL_ROOT -replace '/','\'
-          $curlIncludeNative = $env:CURL_INCLUDE -replace '/','\'
-          $env:PATH = "$($hdf5Root -replace '/','\')\bin;$env:PATH"
-          $env:INCLUDE = "$curlIncludeNative;$env:INCLUDE"
-          $env:LIB = "$curlRootNative\lib;$env:LIB"
-          New-Item -ItemType Directory -Force -Path build | Out-Null
-          Set-Location build
-          cmake .. -A ${{ matrix.cmake_arch }} "--log-level=WARNING"`
-            "-DBUILD_SHARED_LIBS=ON" `
-            "-DNETCDF_ENABLE_HDF5=ON" `
-            "-DNETCDF_ENABLE_TESTS=OFF" `
-            "-DHDF5_ROOT=$hdf5Root" `
-            "-DNETCDF_ENABLE_DAP=ON" `
-            "-DNETCDF_ENABLE_NCZARR=ON" `
-            "-DNETCDF_ENABLE_BYTERANGE=ON" `
-            "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=OFF" `
-            "-DCMAKE_C_FLAGS=/I$env:CURL_INCLUDE" `
-            "-DCMAKE_PREFIX_PATH=$env:CURL_ROOT;$env:ZLIB_ROOT;$hdf5Root" `
-            "-DCURL_ROOT=$env:CURL_ROOT" `
-            "-DCURL_DIR=$env:CURL_DIR" `
-            "-DCURL_INCLUDE_DIR=$env:CURL_INCLUDE" `
-            "-DCURL_INCLUDE_DIRS=$env:CURL_INCLUDE" `
-            "-DCURL_LIBRARY=$env:CURL_LIBRARY" `
-            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
-            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
-            "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
-            "-DCMAKE_BUILD_TYPE=Release"
-          cmake --build . --config Release -- /m /verbosity:normal
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --install . --config Release --prefix "$PWD/install"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: .\.github\scripts\build-netcdf-windows.ps1
 
 
       ###########################################################################
@@ -251,75 +144,18 @@ jobs:
       - name: Package artifacts (Unix)
         if: matrix.os != 'windows'
         shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf artifacts package-stage
-          mkdir -p artifacts
-          STAGE_DIR="$PWD/package-stage"
-          rm -rf "$STAGE_DIR"
-          mkdir -p "$STAGE_DIR/lib"
-
-          copy_matches() {
-            local pattern="$1"
-            shopt -s nullglob
-            local files=($pattern)
-            shopt -u nullglob
-            if ((${#files[@]})); then
-              cp -a "${files[@]}" "$STAGE_DIR/lib/"
-            fi
-          }
-
-          copy_matches "netcdf-c/build/install/lib/libnetcdf.settings"
-          if [[ "${{ matrix.os }}" == "linux" ]]; then
-            copy_matches "netcdf-c/build/install/lib/libnetcdf.so*"
-            copy_matches "curl-build/install/lib/libcurl.so*"
-            copy_matches "build/hdf5/build/install/lib/libhdf5*.so*"
-            copy_matches "zlib-build/install/lib/libz.so*"
-          else
-            copy_matches "netcdf-c/build/install/lib/libnetcdf*.dylib"
-            copy_matches "curl-build/install/lib/libcurl*.dylib"
-            copy_matches "build/hdf5/build/install/lib/libhdf5*.dylib"
-            copy_matches "zlib-build/install/lib/libz*.dylib"
-          fi
-
-          tar -czf artifacts/netcdf-${NETCDF_TAG}-${BUILD_PROFILE}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C "$STAGE_DIR" .
-          rm -rf "$STAGE_DIR"
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: bash .github/scripts/package-unix.sh
 
       - name: Package artifacts (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          if (Test-Path -LiteralPath "artifacts") { Remove-Item -LiteralPath "artifacts" -Recurse -Force }
-          if (Test-Path -LiteralPath "package-stage") { Remove-Item -LiteralPath "package-stage" -Recurse -Force }
-          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          $stageDir = Join-Path $PWD "package-stage"
-          if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
-          New-Item -ItemType Directory -Force -Path (Join-Path $stageDir "lib") | Out-Null
-          $stageLib = Join-Path $stageDir "lib"
-
-          $settingsFile = "netcdf-c\build\install\lib\libnetcdf.settings"
-          if (Test-Path -LiteralPath $settingsFile) {
-            Copy-Item -LiteralPath $settingsFile -Destination $stageLib -Force
-          }
-
-          $runtimeDllDirs = @(
-            "netcdf-c\build\install\bin",
-            "curl-build\install\bin",
-            "build\hdf5\build\install\bin",
-            "zlib-build\install\bin"
-          )
-          foreach ($dllDir in $runtimeDllDirs) {
-            if (Test-Path -LiteralPath $dllDir) {
-              Get-ChildItem -LiteralPath $dllDir -Filter *.dll -File | ForEach-Object {
-                Copy-Item -LiteralPath $_.FullName -Destination $stageLib -Force
-              }
-            }
-          }
-
-          $artifactPath = "artifacts/netcdf-$env:NETCDF_TAG-$env:BUILD_PROFILE-${{ matrix.os }}-${{ matrix.arch }}.zip"
-          Compress-Archive -Path "$stageDir/*" -DestinationPath $artifactPath
-          Remove-Item -LiteralPath $stageDir -Recurse -Force
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: .\.github\scripts\package-windows.ps1
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
