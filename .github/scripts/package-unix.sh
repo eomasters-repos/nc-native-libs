@@ -30,5 +30,5 @@ else
   copy_matches "zlib-build/install/lib/libz*.dylib"
 fi
 
-tar -czf "artifacts/netcdf-${NETCDF_TAG}-${BUILD_PROFILE}-${MATRIX_OS}-${MATRIX_ARCH}.tar.gz" -C "$STAGE_DIR" .
+tar -czf "artifacts/netcdf-${NETCDF_TAG}-${MATRIX_OS}-${MATRIX_ARCH}.tar.gz" -C "$STAGE_DIR" .
 rm -rf "$STAGE_DIR"

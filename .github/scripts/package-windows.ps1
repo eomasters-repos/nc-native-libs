@@ -27,6 +27,6 @@ foreach ($dllDir in $runtimeDllDirs) {
   }
 }
 
-$artifactPath = "artifacts/netcdf-$env:NETCDF_TAG-$env:BUILD_PROFILE-$env:MATRIX_OS-$env:MATRIX_ARCH.zip"
+$artifactPath = "artifacts/netcdf-$env:NETCDF_TAG-$env:MATRIX_OS-$env:MATRIX_ARCH.zip"
 Compress-Archive -Path "$stageDir/*" -DestinationPath $artifactPath
 Remove-Item -LiteralPath $stageDir -Recurse -Force
