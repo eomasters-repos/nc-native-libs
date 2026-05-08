@@ -15,7 +15,7 @@ cmake ../zlib-src -A $env:CMAKE_ARCH `
   "-DCMAKE_BUILD_TYPE=Release" `
   "--log-level=WARNING"
 
-cmake --build . --config Release -- /verbosity:quiet /nologo
+cmake --build . --config Release -- /m /verbosity:minimal /nologo
 cmake --install . --config Release --prefix $installPrefix
 
 $zlibStaticLibCandidates = @(

@@ -32,7 +32,7 @@ cmake .. -A $env:CMAKE_ARCH "--log-level=WARNING"`
   "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
   "-DCMAKE_BUILD_TYPE=Release"
 
-cmake --build . --config Release -- /m /verbosity:normal
+cmake --build . --config Release -- /m /verbosity:minimal
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 cmake --install . --config Release --prefix "$PWD/install"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

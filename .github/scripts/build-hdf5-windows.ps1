@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 Set-Location "build/hdf5"
-Invoke-WebRequest -Uri "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_14_$($env:HDF5_VERSION.Split('.')[2]).tar.gz" -OutFile hdf5.tar.gz
+Invoke-WebRequest -Uri "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-$env:HDF5_VERSION.tar.gz" -OutFile hdf5.tar.gz
 New-Item -ItemType Directory -Force -Path src | Out-Null
 tar -xf hdf5.tar.gz -C src --strip-components=1
 New-Item -ItemType Directory -Force -Path build | Out-Null
@@ -26,4 +26,4 @@ cmake ../src -A $env:CMAKE_ARCH "--log-level=WARNING"`
   "-DCMAKE_INSTALL_PREFIX=$PWD/install" `
   "-DCMAKE_BUILD_TYPE=Release"
 
-cmake --build . --config Release --target install -- /verbosity:minimal
+cmake --build . --config Release --target install -- /m /verbosity:minimal

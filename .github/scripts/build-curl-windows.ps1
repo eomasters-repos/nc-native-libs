@@ -19,7 +19,7 @@ cmake ../curl-src -A $env:CMAKE_ARCH `
   "-DCMAKE_BUILD_TYPE=Release" `
   "--log-level=WARNING"
 
-cmake --build . --config Release --target install -- /verbosity:quiet /nologo
+cmake --build . --config Release --target install -- /m /verbosity:minimal /nologo
 
 $curlImportLibCandidates = @(
   "$PWD\install\lib\libcurl_imp.lib",
