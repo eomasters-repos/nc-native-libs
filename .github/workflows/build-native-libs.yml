@@ -70,103 +70,16 @@ jobs:
       - name: Build zlib (Unix)
         if: runner.os != 'Windows'
         shell: bash
-        run: |
-          set -e
-      
-          curl -sSLf "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz" -o zlib.tar.gz
-          mkdir -p zlib-src
-          tar -xf zlib.tar.gz -C zlib-src --strip-components=1
-      
-          mkdir -p zlib-build
-          cd zlib-build
-      
-          cmake ../zlib-src \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DZLIB_BUILD_SHARED=ON \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
-            --log-level=WARNING
-      
-          cmake --build . --target install -- -s
-      
-          echo "ZLIB_ROOT=$PWD/install" >> $GITHUB_ENV
-          echo "ZLIB_DIR=$PWD/install/lib/cmake/zlib" >> $GITHUB_ENV
-          echo "ZLIB_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
-      
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
-            echo "ZLIB_STATIC_LIBRARY=$PWD/install/lib/libz.a" >> $GITHUB_ENV
-            echo "ZLIB_SHARED_LIBRARY=$PWD/install/lib/libz.so" >> $GITHUB_ENV
-          else
-            echo "ZLIB_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
-            echo "ZLIB_STATIC_LIBRARY=$PWD/install/lib/libz.a" >> $GITHUB_ENV
-            echo "ZLIB_SHARED_LIBRARY=$PWD/install/lib/libz.dylib" >> $GITHUB_ENV
-          fi    
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: bash .github/scripts/build-zlib-unix.sh
 
       - name: Build zlib (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-      
-          $url = "https://github.com/madler/zlib/archive/refs/tags/v$env:ZLIB_VERSION.tar.gz"
-          Invoke-WebRequest -Uri $url -OutFile "zlib.tar.gz"          
-          mkdir zlib-src | Out-Null
-          tar -xf zlib.tar.gz -C zlib-src --strip-components=1
-      
-          New-Item -ItemType Directory -Force -Path zlib-build | Out-Null
-          Set-Location zlib-build
-          $installPrefix = "$PWD\install"
-          $installPrefixCMake = $installPrefix -replace '\\','/'
-
-          cmake ../zlib-src -A x64 `
-            "-DBUILD_SHARED_LIBS=ON" `
-            "-DCMAKE_BUILD_TYPE=Release" `
-            "--log-level=WARNING"
-
-          cmake --build . --config Release -- /verbosity:quiet /nologo
-          cmake --install . --config Release --prefix $installPrefix
-
-          $zlibStaticLibCandidates = @(
-            "$installPrefix\lib\zs.lib",
-            "$installPrefix\lib\zlibstatic.lib",
-            "$installPrefix\lib\zlib.lib"
-          )
-          $zlibStaticLib = $zlibStaticLibCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $zlibStaticLib) {
-            Get-ChildItem -LiteralPath "$installPrefix\lib" -ErrorAction SilentlyContinue
-            throw "Could not find installed zlib static library under $installPrefix\lib"
-          }
-          $zlibSharedImportCandidates = @(
-            "$installPrefix\lib\zlib.lib",
-            "$installPrefix\lib\z.lib"
-          )
-          $zlibSharedImportLib = $zlibSharedImportCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $zlibSharedImportLib) {
-            Get-ChildItem -LiteralPath "$installPrefix\lib" -ErrorAction SilentlyContinue
-            throw "Could not find installed zlib shared import library under $installPrefix\lib"
-          }
-          $zlibDllCandidates = @(
-            (Join-Path $installPrefix "bin\z.dll"),
-            (Join-Path $installPrefix "bin\zlib1.dll"),
-            (Join-Path $installPrefix "bin\zlib.dll")
-          )
-          $zlibDll = $zlibDllCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $zlibDll -or -not (Test-Path -LiteralPath $zlibDll)) {
-            Get-ChildItem -LiteralPath "$installPrefix\bin" -ErrorAction SilentlyContinue
-            throw "Could not find installed zlib runtime DLL under $installPrefix\bin"
-          }
-          $zlibSharedImportLibCMake = $zlibSharedImportLib -replace '\\','/'
-          $zlibStaticLibCMake = $zlibStaticLib -replace '\\','/'
-          $zlibDllCMake = $zlibDll -replace '\\','/'
-
-          echo "ZLIB_ROOT=$installPrefixCMake" >> $env:GITHUB_ENV
-          echo "ZLIB_DIR=$installPrefixCMake/lib/cmake/zlib" >> $env:GITHUB_ENV
-          echo "ZLIB_INCLUDE=$installPrefixCMake/include" >> $env:GITHUB_ENV
-          echo "ZLIB_LIBRARY=$zlibSharedImportLibCMake" >> $env:GITHUB_ENV
-          echo "ZLIB_STATIC_LIBRARY=$zlibStaticLibCMake" >> $env:GITHUB_ENV
-          echo "ZLIB_SHARED_LIBRARY=$zlibSharedImportLibCMake" >> $env:GITHUB_ENV
-          echo "ZLIB_DLL=$zlibDllCMake" >> $env:GITHUB_ENV
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: .\.github\scripts\build-zlib-windows.ps1
 
       ###########################################################################
       # CURL BUILD
@@ -175,99 +88,17 @@ jobs:
       - name: Build curl (Unix)
         if: runner.os != 'Windows'
         shell: bash
-        run: |
-          set -e
-      
-          curl -sSL "https://curl.se/download/curl-$CURL_VERSION.tar.gz" -o curl.tar.gz
-          mkdir -p curl-src
-          tar -xf curl.tar.gz -C curl-src --strip-components=1
-      
-          mkdir -p curl-build
-          cd curl-build
-      
-          TLS_BACKEND="-DCURL_USE_OPENSSL=ON"
-      
-          cmake ../curl-src \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$PWD/install \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DBUILD_SHARED_LIBS=ON \
-            -DCURL_USE_LIBPSL=OFF \
-            -DCURL_ZLIB=OFF \
-            -DZLIB_INCLUDE_DIR=$ZLIB_INCLUDE \
-            -DZLIB_LIBRARY=$ZLIB_LIBRARY \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} \
-            $TLS_BACKEND \
-            --log-level=WARNING
-      
-          cmake --build . --target install -- -s
-      
-          echo "CURL_ROOT=$PWD/install" >> $GITHUB_ENV
-          echo "CURL_DIR=$PWD/install/lib/cmake/CURL" >> $GITHUB_ENV
-          echo "CURL_INCLUDE=$PWD/install/include" >> $GITHUB_ENV
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            echo "CURL_LIBRARY=$PWD/install/lib/libcurl.so" >> $GITHUB_ENV
-            echo "CURL_SHARED_LIBRARY=$PWD/install/lib/libcurl.so" >> $GITHUB_ENV
-          else
-            echo "CURL_LIBRARY=$PWD/install/lib/libcurl.dylib" >> $GITHUB_ENV
-            echo "CURL_SHARED_LIBRARY=$PWD/install/lib/libcurl.dylib" >> $GITHUB_ENV
-          fi
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: bash .github/scripts/build-curl-unix.sh
 
 
       - name: Build curl (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-      
-          $url = "https://curl.se/download/curl-$env:CURL_VERSION.tar.gz"
-          Invoke-WebRequest -Uri $url -OutFile "curl.tar.gz"
-          
-          # Correct: extract .tar.gz using tar, not Expand-Archive
-          tar -xf curl.tar.gz
-          Rename-Item "curl-$env:CURL_VERSION" curl-src
-      
-          New-Item -ItemType Directory -Force -Path curl-build | Out-Null
-          Set-Location curl-build
-          $curlInstallPrefix = ("$PWD\install" -replace '\\','/')
-      
-          cmake ../curl-src -A x64 `
-            "-DBUILD_SHARED_LIBS=ON" `
-            "-DCURL_USE_SCHANNEL=ON" `
-            "-DCURL_USE_OPENSSL=OFF" `
-            "-DCURL_USE_LIBPSL=OFF" `
-            "-DCURL_ZLIB=OFF" `
-            "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE" `
-            "-DZLIB_LIBRARY=$env:ZLIB_LIBRARY" `
-            "-DCMAKE_INSTALL_PREFIX=$curlInstallPrefix" `
-            "-DCMAKE_BUILD_TYPE=Release" `
-            "--log-level=WARNING"
-      
-          cmake --build . --config Release --target install -- /verbosity:quiet /nologo
-
-          $curlImportLibCandidates = @(
-            "$PWD\install\lib\libcurl_imp.lib",
-            "$PWD\install\lib\libcurl.lib"
-          )
-          $curlImportLib = $curlImportLibCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $curlImportLib) {
-            Get-ChildItem -LiteralPath "$PWD\install\lib" -ErrorAction SilentlyContinue
-            throw "Could not find installed curl import library"
-          }
-          $curlDll = "$PWD\install\bin\libcurl.dll"
-          if (-not (Test-Path -LiteralPath $curlDll)) {
-            Get-ChildItem -LiteralPath "$PWD\install\bin" -ErrorAction SilentlyContinue
-            throw "Could not find installed curl runtime DLL"
-          }
-          $curlImportLibCMake = $curlImportLib -replace '\\','/'
-          $curlDllCMake = $curlDll -replace '\\','/'
-
-          echo "CURL_ROOT=$curlInstallPrefix" >> $env:GITHUB_ENV
-          echo "CURL_DIR=$curlInstallPrefix/lib/cmake/CURL" >> $env:GITHUB_ENV
-          echo "CURL_INCLUDE=$curlInstallPrefix/include" >> $env:GITHUB_ENV
-          echo "CURL_LIBRARY=$curlImportLibCMake" >> $env:GITHUB_ENV
-          echo "CURL_SHARED_LIBRARY=$curlImportLibCMake" >> $env:GITHUB_ENV
-          echo "CURL_DLL=$curlDllCMake" >> $env:GITHUB_ENV
+        env:
+          CMAKE_ARCH: ${{ matrix.cmake_arch }}
+        run: .\.github\scripts\build-curl-windows.ps1
 
       ###########################################################################
       # HDF5 SERIAL BUILD
@@ -505,12 +336,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Delete existing release/tag (hard reset)
+      - name: Reset existing release/tag
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if gh release view "$NETCDF_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$NETCDF_TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           else
@@ -518,13 +351,6 @@ jobs:
             git push origin ":refs/tags/$NETCDF_TAG" 2>/dev/null || true
           fi
           git tag -d "$NETCDF_TAG" 2>/dev/null || true
-
-      - name: Recreate release tag
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$NETCDF_TAG" "$GITHUB_SHA" -f
           git push origin "refs/tags/$NETCDF_TAG" --force
 
