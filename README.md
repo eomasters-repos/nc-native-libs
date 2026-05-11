@@ -1,6 +1,8 @@
 # NC Native Libraries
 
-This repository provides native NetCDF libraries (serial) for Windows, Linux and MacOS 
+This repository provides native NetCDF libraries (serial). The libraries are created by cloning and building the [NetCDF-C](https://github.com/Unidata/netcdf-c) repository.
+The following  platforms and archtectures are supported:
+
 |    OS    | x64 | ARM |
 |----------|-----|-----|
 | Windows  | ✅  | ❌   |
